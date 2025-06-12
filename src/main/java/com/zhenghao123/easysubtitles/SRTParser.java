@@ -3,24 +3,22 @@ package com.zhenghao123.easysubtitles;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 public class SRTParser {
     public static class Subtitle {
-        private final long startMs;
-        private final long endMs;
+        private final long start;
+        private final long end;
         private final String text;
 
-        public Subtitle(long startMs, long endMs, String text) {
-            this.startMs = startMs;
-            this.endMs = endMs;
+        public Subtitle(long start, long end, String text) {
+            this.start = start;
+            this.end = end;
             this.text = text;
         }
 
-        // Getters
-        public long getStartMs() { return startMs; }
-        public long getEndMs() { return endMs; }
+        public long getStartMs() { return start; }
+        public long getEndMs() { return end; }
         public String getText() { return text; }
     }
 
@@ -29,50 +27,43 @@ public class SRTParser {
     );
 
     public static List<Subtitle> parse(File file) throws IOException {
-        List<Subtitle> subtitles = new ArrayList<>();
+        List<Subtitle> subs = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) // 强制UTF-8编码
+                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))
         ) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                // 尝试解析序号行（跳过无效行）
-                try {
-                    Integer.parseInt(line);
-                } catch (NumberFormatException e) {
-                    continue;
-                }
+                // 跳过序号行
+                if (!line.matches("\\d+")) continue;
 
-                // 读取时间行
+                // 解析时间轴
                 line = reader.readLine();
-                if (line == null) break;
-
                 Matcher matcher = TIME_PATTERN.matcher(line);
                 if (!matcher.find()) continue;
 
-                long startMs = parseTime(matcher, 1);
-                long endMs = parseTime(matcher, 5);
+                long start = parseTime(matcher, 1);
+                long end = parseTime(matcher, 5);
 
                 // 读取文本
                 StringBuilder text = new StringBuilder();
-                while ((line = reader.readLine()) != null && !line.trim().isEmpty()) {
-                    if (text.length() > 0) text.append(" ");
-                    text.append(line.trim());
+                while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                    text.append(line).append(" ");
                 }
 
-                subtitles.add(new Subtitle(startMs, endMs, text.toString()));
+                subs.add(new Subtitle(start, end, text.toString().trim()));
             }
         }
-        return subtitles;
+        return subs;
     }
 
-    private static long parseTime(Matcher matcher, int offset) {
-        int hours = Integer.parseInt(matcher.group(offset));
-        int minutes = Integer.parseInt(matcher.group(offset + 1));
-        int seconds = Integer.parseInt(matcher.group(offset + 2));
-        int millis = Integer.parseInt(matcher.group(offset + 3));
-        return (hours * 3600000L) + (minutes * 60000L) + (seconds * 1000L) + millis;
+    private static long parseTime(Matcher m, int offset) {
+        int h = Integer.parseInt(m.group(offset));
+        int min = Integer.parseInt(m.group(offset + 1));
+        int sec = Integer.parseInt(m.group(offset + 2));
+        int ms = Integer.parseInt(m.group(offset + 3));
+        return h * 3600000L + min * 60000L + sec * 1000L + ms;
     }
 }

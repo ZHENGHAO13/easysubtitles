@@ -9,43 +9,40 @@ import net.minecraft.network.chat.Component;
 import java.io.File;
 
 public class CommandHandler {
-    private static final File SUBTITLE_DIR = new File(
-            Minecraft.getInstance().gameDirectory, "config/easysubtitles"
+    private static final File SUB_DIR = new File(
+            Minecraft.getInstance().gameDirectory,
+            "config/easysubtitles"
     );
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // 确保字幕目录存在
-        if (!SUBTITLE_DIR.exists()) SUBTITLE_DIR.mkdirs();
+        if (!SUB_DIR.exists()) SUB_DIR.mkdirs();
 
         dispatcher.register(Commands.literal("easysub")
                 .then(Commands.argument("filename", StringArgumentType.string())
-                        .executes(context -> {
-                            String filename = StringArgumentType.getString(context, "filename");
-                            File srtFile = new File(SUBTITLE_DIR, filename + ".srt");
+                        .executes(ctx -> {
+                            String name = StringArgumentType.getString(ctx, "filename");
+                            File file = new File(SUB_DIR, name + ".srt");
 
-                            if (!srtFile.exists()) {
-                                context.getSource().sendFailure(
-                                        Component.literal("字幕文件不存在: " + srtFile.getPath())
-                                );
-                                context.getSource().sendFailure(
-                                        Component.literal("请将.srt文件放入 config/easysubtitles/ 目录")
+                            if (!file.exists()) {
+                                ctx.getSource().sendFailure(
+                                        Component.literal("文件不存在: " + file.getAbsolutePath())
                                 );
                                 return 0;
                             }
 
-                            SubtitlePlayer.play(srtFile);
-                            context.getSource().sendSuccess(
-                                    () -> Component.literal("播放字幕: " + filename),
+                            SubtitlePlayer.play(file);
+                            ctx.getSource().sendSuccess(
+                                    () -> Component.literal("播放字幕: " + name),
                                     true
                             );
                             return 1;
                         })
                 )
                 .then(Commands.literal("stop")
-                        .executes(context -> {
+                        .executes(ctx -> {
                             SubtitlePlayer.stop();
-                            context.getSource().sendSuccess(
-                                    () -> Component.literal("已停止字幕播放"),
+                            ctx.getSource().sendSuccess(
+                                    () -> Component.literal("已停止播放"),
                                     true
                             );
                             return 1;
