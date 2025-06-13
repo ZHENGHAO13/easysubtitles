@@ -2,8 +2,12 @@ package com.zhenghao123.easysubtitles;
 
 import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.CommandEvent;
@@ -26,9 +30,8 @@ public class CommandPlayListener {
             String fullCommand = event.getParseResults().getReader().getString().trim();
             LOGGER.info("捕获命令: {}", fullCommand);
 
-            // 修复命令检测：同时支持带斜杠和不带斜杠的命令格式
-            if (!fullCommand.startsWith("/playsound ") &&
-                    !fullCommand.startsWith("playsound ")) {
+            // 检测命令格式（同时支持带斜杠和不带斜杠）
+            if (!fullCommand.startsWith("/playsound ") && !fullCommand.startsWith("playsound ")) {
                 LOGGER.debug("非/playsound命令，跳过处理");
                 return;
             }
@@ -38,8 +41,8 @@ public class CommandPlayListener {
                 fullCommand = fullCommand.substring(1);
             }
 
-            // 分割命令参数（参数前4个）
-            String[] parts = fullCommand.split("\\s+", 5); // 只分割最多5部分
+            // 分割命令参数
+            String[] parts = fullCommand.split("\\s+", 5);
 
             // 确保有足够的参数
             if (parts.length < 4) {
@@ -47,7 +50,6 @@ public class CommandPlayListener {
                 return;
             }
 
-            // 解析声音ID
             ResourceLocation soundId = ResourceLocation.tryParse(parts[1]);
             if (soundId == null) {
                 LOGGER.warn("无法解析声音ID: {}", parts[1]);
@@ -55,15 +57,15 @@ public class CommandPlayListener {
             }
             LOGGER.info("声音ID: namespace={}, path={}", soundId.getNamespace(), soundId.getPath());
 
-            // 检查命名空间
+            // 检查是否属于字幕命名空间
             if (!ConfigHandler.SUBTITLE_NAMESPACE.equals(soundId.getNamespace())) {
-                LOGGER.debug("跳过非字幕声音: {} (命名空间不匹配)", soundId);
+                LOGGER.debug("跳过非字幕声音: {}", soundId);
                 return;
             }
 
             // 检查路径前缀
             if (!soundId.getPath().startsWith(SOUND_PREFIX)) {
-                LOGGER.warn("声音ID缺少字幕前缀: {}, 应为: {}", soundId, SOUND_PREFIX);
+                LOGGER.warn("声音ID缺少字幕前缀: {}", soundId);
                 return;
             }
 
@@ -71,32 +73,45 @@ public class CommandPlayListener {
             String soundName = soundId.getPath().substring(SOUND_PREFIX.length());
             LOGGER.info("提取声音名称: {}", soundName);
 
+            // 阻止原始命令的执行（这样就不会显示提示信息）
+            event.setCanceled(true);
+            LOGGER.info("已取消原始命令执行");
+
+            // 获取本地玩家
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null) {
+                LOGGER.warn("无法获取本地玩家");
+                return;
+            }
+
             // 解析目标玩家
             String target = parts[3];
-            String localPlayer = Minecraft.getInstance().player != null ?
-                    Minecraft.getInstance().player.getName().getString() : "unknown";
 
-            LOGGER.info("当前玩家: {}, 命令目标: {}", localPlayer, target);
-
-            // 检查目标是否为当前玩家
-            if (isCurrentPlayerTarget(target, localPlayer)) {
-                LOGGER.info("准备为玩家 {} 播放字幕", localPlayer);
-                // 确保在主线程播放字幕
-                Minecraft.getInstance().submit(() -> playSubtitleFile(soundName));
-            } else {
-                LOGGER.debug("目标玩家 {} 不是当前玩家，跳过字幕显示", target);
+            // 检查是否是针对当前玩家的命令
+            if (!isForCurrentPlayer(target, player.getName().getString())) {
+                LOGGER.debug("目标玩家 {} 不是当前玩家，跳过处理", target);
+                return;
             }
+
+            // 播放声音（模拟原始命令）
+            playSoundLocally(soundId, player);
+
+            // 播放字幕
+            playSubtitleFile(soundName);
+
         } catch (Exception e) {
             LOGGER.error("处理命令时出错", e);
         }
     }
 
     /**
-     * 检查命令目标是否包含当前玩家
+     * 检查目标玩家是否包括当前玩家
      */
-    private boolean isCurrentPlayerTarget(String target, String currentPlayer) {
-        // 单人游戏总是显示
-        if (Minecraft.getInstance().isSingleplayer()) return true;
+    private boolean isForCurrentPlayer(String target, String currentPlayerName) {
+        // 单人游戏总是返回true
+        if (Minecraft.getInstance().isSingleplayer()) {
+            return true;
+        }
 
         // 多目标处理
         String[] targets = target.split(",");
@@ -106,11 +121,39 @@ public class CommandPlayListener {
                     t.equals("@s") ||
                     t.equals("@p") ||
                     t.equals("*") ||
-                    t.equalsIgnoreCase(currentPlayer)) {
+                    t.equalsIgnoreCase(currentPlayerName)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 在客户端模拟播放声音
+     */
+    private void playSoundLocally(ResourceLocation soundId, LocalPlayer player) {
+        LOGGER.info("在客户端播放声音: {}", soundId);
+
+        try {
+            // 创建声音事件（使用固定音量和音高）
+            SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundId);
+
+            // 获取玩家位置
+            Vec3 pos = player.position();
+
+            // 在玩家位置播放声音
+            player.clientLevel.playSound(
+                    player,
+                    pos.x, pos.y, pos.z,
+                    soundEvent,
+                    SoundSource.MASTER, // 使用主声音通道
+                    1.0f,     // 音量
+                    1.0f      // 音高
+            );
+
+        } catch (Exception e) {
+            LOGGER.error("播放声音失败", e);
+        }
     }
 
     private void playSubtitleFile(String soundName) {
@@ -141,7 +184,7 @@ public class CommandPlayListener {
             return;
         }
 
-        LOGGER.warn("无法找到字幕文件: {}", subFile.getAbsolutePath());
+        LOGGER.warn("无法找到字幕文件: {}", soundName);
         Minecraft.getInstance().gui.getChat().addMessage(
                 Component.literal("未找到字幕文件: " + soundName)
         );
