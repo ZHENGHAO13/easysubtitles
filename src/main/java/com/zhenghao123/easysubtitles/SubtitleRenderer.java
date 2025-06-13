@@ -53,17 +53,17 @@ public class SubtitleRenderer {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
-        // 确保在正确覆盖层渲染
+
         if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) {
             return;
         }
 
-        // 检查是否有活动字幕
+
         if (System.currentTimeMillis() > displayUntil || currentSubtitle.isEmpty()) {
             return;
         }
 
-        // 渲染字幕
+
         GuiGraphics gui = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int screenHeight = event.getWindow().getGuiScaledHeight();
@@ -106,7 +106,7 @@ public class SubtitleRenderer {
                 return;
             }
         }
-        // 纯色背景回退
+
         LOGGER.trace("渲染纯色背景");
         gui.fill(
                 x - padding, y - padding,

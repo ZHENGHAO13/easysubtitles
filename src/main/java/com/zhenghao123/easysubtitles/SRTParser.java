@@ -44,14 +44,14 @@ public class SRTParser {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                // 跳过序号行
+
                 if (!line.matches("\\d+")) continue;
 
-                // 解析时间轴
+
                 line = reader.readLine();
                 if (line == null) {
                     LOGGER.warn("文件提前结束，缺少时间轴行");
-                    break; // 防止文件意外结束
+                    break;
                 }
 
                 Matcher matcher = TIME_PATTERN.matcher(line);
@@ -71,7 +71,7 @@ public class SRTParser {
                     continue;
                 }
 
-                // 读取文本
+
                 StringBuilder text = new StringBuilder();
                 while ((line = reader.readLine()) != null && !line.isEmpty()) {
                     text.append(line).append("\n");

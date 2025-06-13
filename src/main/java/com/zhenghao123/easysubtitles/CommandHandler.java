@@ -7,7 +7,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger; // 正确的Log4j导入
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 
@@ -17,12 +17,12 @@ public class CommandHandler {
             "config/easysubtitles"
     );
 
-    // 使用正确的Log4j Logger
+
     private static final Logger LOGGER = LogManager.getLogger();
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         if (!SUB_DIR.exists()) {
-            // 使用参数化日志方法
+
             LOGGER.info("创建字幕目录: {}", SUB_DIR.getAbsolutePath());
             SUB_DIR.mkdirs();
         }
@@ -64,16 +64,16 @@ public class CommandHandler {
     }
 
     private static void playSubtitleFile(CommandSourceStack source, String fileName) {
-        // 使用参数化日志方法
+
         LOGGER.info("尝试播放字幕文件: {} (路径: {})", fileName, SUB_DIR.getAbsolutePath());
 
         File file = new File(SUB_DIR, fileName + ".srt");
 
-        // 记录完整文件路径
+
         LOGGER.info("查找文件路径: {}", file.getAbsolutePath());
 
         if (!file.exists()) {
-            // 使用参数化日志方法
+
             LOGGER.warn("文件不存在: {}", file.getAbsolutePath());
             source.sendFailure(
                     Component.literal("文件不存在: " + file.getAbsolutePath())

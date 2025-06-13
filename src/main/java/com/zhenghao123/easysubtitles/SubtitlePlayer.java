@@ -3,7 +3,7 @@ package com.zhenghao123.easysubtitles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger; // 确保导入正确的 Log4j Logger
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.util.List;
@@ -16,7 +16,7 @@ public class SubtitlePlayer {
     private static ScheduledExecutorService scheduler;
     private static File currentFile;
 
-    // 使用正确的 Log4j Logger
+
     private static final Logger LOGGER = LogManager.getLogger();
 
     public static void play(File srtFile) {
@@ -24,10 +24,10 @@ public class SubtitlePlayer {
             LOGGER.info("播放字幕文件: {}", srtFile.getName());
         }
 
-        // 停止当前播放
+
         stop();
 
-        // 更新当前文件
+
         currentFile = srtFile;
 
         try {

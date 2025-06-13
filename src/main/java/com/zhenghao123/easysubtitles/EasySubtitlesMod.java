@@ -26,21 +26,21 @@ public class EasySubtitlesMod {
     public EasySubtitlesMod() {
         LOGGER.info("EasySubtitles 模组正在初始化...");
 
-        // 初始化配置文件
+
         ModLoadingContext.get().registerConfig(
                 ModConfig.Type.CLIENT,
                 ConfigHandler.SPEC,
                 "easysubtitles-client.toml"
         );
 
-        // 获取事件总线
+
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // 注册生命周期事件
+
         modEventBus.addListener(this::onCommonSetup);
         modEventBus.addListener(this::onClientSetup);
 
-        // 注册Forge事件总线
+
         MinecraftForge.EVENT_BUS.register(this);
 
         LOGGER.info("主类初始化完成");
@@ -53,15 +53,15 @@ public class EasySubtitlesMod {
     private void onClientSetup(FMLClientSetupEvent event) {
         LOGGER.info("正在初始化EasySubtitles客户端组件...");
 
-        // 创建组件实例
+
         this.subtitleRenderer = new SubtitleRenderer();
         this.commandPlayListener = new CommandPlayListener();
 
-        // 注册到事件总线
+
         MinecraftForge.EVENT_BUS.register(subtitleRenderer);
         MinecraftForge.EVENT_BUS.register(commandPlayListener);
 
-        // 打印注册状态
+
         LOGGER.info("已注册字幕渲染器: {}", subtitleRenderer != null);
         LOGGER.info("已注册命令监听器: {}", commandPlayListener != null);
         LOGGER.info("客户端组件初始化完成");
