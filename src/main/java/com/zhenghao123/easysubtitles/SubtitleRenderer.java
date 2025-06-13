@@ -8,16 +8,28 @@ import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import org.apache.logging.log4j.LogManager; // 新增日志导入
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class SubtitleRenderer {
+    private static final Logger LOGGER = LogManager.getLogger();
     private static String currentSubtitle = "";
     private static long displayUntil = 0;
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
 
+    public SubtitleRenderer() {
+        LOGGER.info("字幕渲染器初始化");
+    }
+
     public static void showSubtitle(String text, long duration) {
+        if (Minecraft.getInstance() == null) {
+            LOGGER.error("尝试在未初始化时显示字幕!");
+            return;
+        }
+
         Minecraft.getInstance().execute(() -> {
+            LOGGER.debug("设置字幕显示: '{}' 持续 {}ms", text, duration);
             currentSubtitle = text;
             displayUntil = System.currentTimeMillis() + duration;
         });
@@ -27,30 +39,39 @@ public class SubtitleRenderer {
         try {
             String path = ConfigHandler.BG_IMAGE_PATH.get();
             backgroundTexture = new ResourceLocation(path);
-            // 使用Log4j日志系统替代错误写法
+            LOGGER.debug("尝试加载背景纹理: {}", path);
+
             if (!Minecraft.getInstance().getResourceManager()
                     .getResource(backgroundTexture).isPresent()) {
-                LogManager.getLogger().error("字幕背景资源不存在: {}", path);
+                LOGGER.error("字幕背景资源不存在: {}", path);
             }
         } catch (Exception e) {
-            // 使用标准Log4j日志记录器
-            LogManager.getLogger().error("字幕背景加载失败", e);
+            LOGGER.error("字幕背景加载失败", e);
             backgroundTexture = null;
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    @SubscribeEvent(priority = EventPriority.LOW)
     public void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
-        if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) return;
-        if (System.currentTimeMillis() > displayUntil || currentSubtitle.isEmpty()) return;
+        // 确保在正确覆盖层渲染
+        if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) {
+            return;
+        }
 
+        // 检查是否有活动字幕
+        if (System.currentTimeMillis() > displayUntil || currentSubtitle.isEmpty()) {
+            return;
+        }
+
+        // 渲染字幕
         GuiGraphics gui = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int screenHeight = event.getWindow().getGuiScaledHeight();
         int textWidth = Minecraft.getInstance().font.width(currentSubtitle);
         int x = (screenWidth - textWidth) / 2;
-        int y = screenHeight - 40;
+        int y = screenHeight - 70; // 比聊天框稍高
 
+        LOGGER.trace("渲染字幕: '{}' 位置: {},{}", currentSubtitle, x, y);
         renderBackground(gui, x, y, textWidth);
         gui.drawString(
                 Minecraft.getInstance().font,
@@ -73,6 +94,8 @@ public class SubtitleRenderer {
                 int offsetX = x - padding - (scaledWidth - textWidth - padding * 2) / 2;
                 int offsetY = y - padding - (scaledHeight - bgHeight) / 2;
 
+                LOGGER.trace("渲染背景图片: {} 大小: {}x{}",
+                        backgroundTexture, scaledWidth, scaledHeight);
                 gui.blit(
                         backgroundTexture,
                         offsetX, offsetY,
@@ -84,6 +107,7 @@ public class SubtitleRenderer {
             }
         }
         // 纯色背景回退
+        LOGGER.trace("渲染纯色背景");
         gui.fill(
                 x - padding, y - padding,
                 x + textWidth + padding, y + bgHeight,

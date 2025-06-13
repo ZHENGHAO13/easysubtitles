@@ -1,0 +1,45 @@
+{
+  "sound.a": {
+    "sounds": [
+      {
+        "name": "easysubtitles:sound_a",
+        "stream": false
+      }
+    ]
+  },
+
+  "subtitles.sound.a": {
+    "sounds": [
+      {
+        "name": "easysubtitles:subtitles/kaichang",
+        "stream": false
+      }
+    ]
+  },
+  "subtitles.sound.moji": {
+    "sounds": [
+      {
+        "name": "easysubtitles:subtitles/moji",
+        "stream": false
+      }
+    ]
+  },
+  "subtitles.sound.kaichang1": {
+    "sounds": [
+      {
+        "name": "easysubtitles:subtitles/kaichangbai2jp",
+        "stream": false
+      }
+    ]
+  },
+  "subtitles.sound.ce1": {
+    "sounds": [
+      {
+        "name": "easysubtitles:subtitles/ce1",
+        "stream": false
+      }
+    ]
+  }
+
+
+}
