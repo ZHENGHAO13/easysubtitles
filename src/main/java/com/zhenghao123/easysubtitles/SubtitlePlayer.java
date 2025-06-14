@@ -3,6 +3,7 @@ package com.zhenghao123.easysubtitles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(Dist.CLIENT)
 public class SubtitlePlayer {
     private static List<SRTParser.Subtitle> currentSubtitles;
     private static ScheduledExecutorService scheduler;
@@ -35,6 +36,8 @@ public class SubtitlePlayer {
     private static boolean firstSubtitleScheduled = false;
 
     public static void play(File srtFile) {
+        if (Minecraft.getInstance() == null) return;
+
         LOGGER.info("播放字幕文件: {}", srtFile.getName());
 
         // 重置所有状态
@@ -59,7 +62,6 @@ public class SubtitlePlayer {
 
             // 立即显示第一句字幕（如果开始时间为0）
             scheduleFirstSubtitleIfNeeded();
-
 
             scheduleRemainingSubtitles();
         } catch (Exception e) {
@@ -105,7 +107,6 @@ public class SubtitlePlayer {
         return currentSubtitles != null && !currentSubtitles.isEmpty();
     }
 
-
     public static void pausePlayback() {
         if (!isPlaying() || isPaused) return;
 
@@ -114,13 +115,11 @@ public class SubtitlePlayer {
         lastPauseStart.set(System.currentTimeMillis());
         SubtitleRenderer.pause();
 
-
         if (scheduler != null) {
             scheduler.shutdownNow();
             scheduler = null;
         }
     }
-
 
     public static void resumePlayback() {
         if (!isPlaying() || !isPaused) return;
@@ -131,15 +130,12 @@ public class SubtitlePlayer {
 
         isPaused = false;
 
-
         showCurrentActiveSubtitle();
-
 
         scheduleRemainingSubtitles();
 
         SubtitleRenderer.resume();
     }
-
 
     private static void showCurrentActiveSubtitle() {
         if (currentSubtitles == null || currentSubtitles.isEmpty()) return;
@@ -147,11 +143,8 @@ public class SubtitlePlayer {
         long currentTime = System.currentTimeMillis();
         long adjustedTime = currentTime - playbackStartTime.get() - totalPauseDuration.get();
 
-
         for (SRTParser.Subtitle sub : currentSubtitles) {
-
             if (adjustedTime >= sub.getStartMs() && adjustedTime <= sub.getEndMs()) {
-
                 long remainingTime = sub.getEndMs() - adjustedTime;
                 LOGGER.debug("显示当前活跃字幕: '{}' 剩余: {}ms", sub.getText(), remainingTime);
                 SubtitleRenderer.showSubtitle(sub.getText(), remainingTime);
@@ -160,14 +153,12 @@ public class SubtitlePlayer {
         }
     }
 
-
     private static void scheduleFirstSubtitleIfNeeded() {
         if (currentSubtitles == null || currentSubtitles.isEmpty() || firstSubtitleScheduled)
             return;
 
         SRTParser.Subtitle firstSubtitle = currentSubtitles.get(0);
         if (firstSubtitle.getStartMs() == 0) {
-
             long duration = firstSubtitle.getEndMs() - firstSubtitle.getStartMs();
             LOGGER.debug("立即显示第一句字幕: '{}' 持续: {}ms",
                     firstSubtitle.getText(), duration);
@@ -175,7 +166,6 @@ public class SubtitlePlayer {
             firstSubtitleScheduled = true;
         }
     }
-
 
     private static void scheduleRemainingSubtitles() {
         if (scheduler != null) {
@@ -203,31 +193,26 @@ public class SubtitlePlayer {
         for (int i = subtitleIndex; i < currentSubtitles.size(); i++) {
             final SRTParser.Subtitle sub = currentSubtitles.get(i);
 
-
             long adjustedStart = startTimestamp + offset + sub.getStartMs();
             long adjustedDelay = adjustedStart - currentTime;
 
-
             long duration = sub.getEndMs() - sub.getStartMs();
-
 
             if (adjustedDelay < 0) {
                 long timePassed = currentTime - adjustedStart;
                 long adjustedDuration = duration - timePassed;
 
-                if (adjustedDuration > 50) { // 大于50ms才显示
+                if (adjustedDuration > 50) {
                     LOGGER.debug("显示滞后字幕: '{}' 剩余: {}ms", sub.getText(), adjustedDuration);
                     SubtitleRenderer.showSubtitle(sub.getText(), adjustedDuration);
                 }
                 continue;
             }
 
-
             if (i == 0 && !firstSubtitleScheduled) {
                 LOGGER.debug("调度第一句字幕: '{}' 延迟: {}ms", sub.getText(), adjustedDelay);
                 firstSubtitleScheduled = true;
             }
-
 
             scheduler.schedule(() -> {
                 if (!isPaused) {
@@ -244,11 +229,9 @@ public class SubtitlePlayer {
         LOGGER.info("已调度 {} 个字幕播放", currentSubtitles.size() - subtitleIndex);
     }
 
-
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-
 
         if (Minecraft.getInstance().level == null || Minecraft.getInstance().player == null) {
             return;
@@ -256,15 +239,12 @@ public class SubtitlePlayer {
 
         boolean isPauseScreen = Minecraft.getInstance().screen instanceof PauseScreen;
 
-
         if (isPauseScreen && isPlaying()) {
-
             if (!isPaused) {
                 LOGGER.debug("检测到暂停菜单打开，暂停字幕");
                 pausePlayback();
             }
         } else if (isPlaying()) {
-
             if (isPaused) {
                 LOGGER.debug("检测到暂停菜单关闭，恢复字幕");
                 resumePlayback();
@@ -272,13 +252,11 @@ public class SubtitlePlayer {
         }
     }
 
-
     @SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         LOGGER.info("玩家退出世界，重置所有字幕状态");
         resetOnWorldExit();
     }
-
 
     public static void resetOnWorldExit() {
         LOGGER.info("完全重置字幕播放器");

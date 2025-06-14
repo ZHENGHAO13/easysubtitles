@@ -44,9 +44,7 @@ public class SRTParser {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-
                 if (!line.matches("\\d+")) continue;
-
 
                 line = reader.readLine();
                 if (line == null) {
@@ -70,7 +68,6 @@ public class SRTParser {
                     errorCount++;
                     continue;
                 }
-
 
                 StringBuilder text = new StringBuilder();
                 while ((line = reader.readLine()) != null && !line.isEmpty()) {

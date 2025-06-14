@@ -10,11 +10,9 @@ public class ConfigHandler {
     public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec SPEC;
 
-
     public static final ForgeConfigSpec.BooleanValue USE_IMAGE_BG;
     public static final ForgeConfigSpec.ConfigValue<String> BG_IMAGE_PATH;
     public static final ForgeConfigSpec.DoubleValue BG_SCALE;
-
 
     public static final ForgeConfigSpec.BooleanValue AUTO_SUBTITLE;
 

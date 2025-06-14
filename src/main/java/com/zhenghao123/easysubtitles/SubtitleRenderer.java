@@ -4,6 +4,8 @@ import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -11,6 +13,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+@OnlyIn(Dist.CLIENT)
 public class SubtitleRenderer {
     private static final Logger LOGGER = LogManager.getLogger();
     private static String currentSubtitle = "";
@@ -54,7 +57,7 @@ public class SubtitleRenderer {
         if (displayUntil > currentTime) {
             remainingTimeOnPause = displayUntil - currentTime;
         } else {
-            remainingTimeOnPause = 0; // 如果字幕已过期
+            remainingTimeOnPause = 0;
         }
 
         LOGGER.debug("渲染器暂停 - 剩余时间: {}ms", remainingTimeOnPause);
@@ -69,7 +72,6 @@ public class SubtitleRenderer {
             displayUntil = System.currentTimeMillis() + remainingTimeOnPause;
             LOGGER.debug("渲染器恢复 - 剩余时间: {}ms", remainingTimeOnPause);
         } else {
-            // 如果剩余时间为0或负值，清除字幕
             clearSubtitle();
             LOGGER.debug("渲染器恢复 - 无剩余时间，清除字幕");
         }
@@ -81,9 +83,9 @@ public class SubtitleRenderer {
             backgroundTexture = new ResourceLocation(path);
             LOGGER.debug("尝试加载背景纹理: {}", path);
 
-            if (!Minecraft.getInstance().getResourceManager()
-                    .getResource(backgroundTexture).isPresent()) {
+            if (Minecraft.getInstance().getResourceManager().getResource(backgroundTexture).isEmpty()) {
                 LOGGER.error("字幕背景资源不存在: {}", path);
+                backgroundTexture = null;
             }
         } catch (Exception e) {
             LOGGER.error("字幕背景加载失败", e);
@@ -96,7 +98,6 @@ public class SubtitleRenderer {
         if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) {
             return;
         }
-
 
         boolean shouldRender = !currentSubtitle.isEmpty() &&
                 (isPaused || System.currentTimeMillis() <= displayUntil);
@@ -111,9 +112,6 @@ public class SubtitleRenderer {
         int textWidth = Minecraft.getInstance().font.width(currentSubtitle);
         int x = (screenWidth - textWidth) / 2;
         int y = screenHeight - 70; // 比聊天框稍高
-
-        LOGGER.trace("渲染字幕: '{}' 位置: {},{} [状态: {}]",
-                currentSubtitle, x, y, isPaused ? "暂停中" : "播放中");
 
         renderBackground(gui, x, y, textWidth);
 
@@ -138,8 +136,6 @@ public class SubtitleRenderer {
                 int offsetX = x - padding - (scaledWidth - textWidth - padding * 2) / 2;
                 int offsetY = y - padding - (scaledHeight - bgHeight) / 2;
 
-                LOGGER.trace("渲染背景图片: {} 大小: {}x{}",
-                        backgroundTexture, scaledWidth, scaledHeight);
                 gui.blit(
                         backgroundTexture,
                         offsetX, offsetY,
@@ -150,8 +146,6 @@ public class SubtitleRenderer {
                 return;
             }
         }
-
-        LOGGER.trace("渲染纯色背景");
 
         gui.fill(
                 x - padding, y - padding,
