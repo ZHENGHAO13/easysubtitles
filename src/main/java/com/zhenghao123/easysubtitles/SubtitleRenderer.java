@@ -18,7 +18,7 @@ public class SubtitleRenderer {
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
 
-    // 添加暂停状态管理
+    // 暂停状态管理
     private static boolean isPaused = false;
     private static long remainingTimeOnPause = 0;
 
@@ -45,7 +45,7 @@ public class SubtitleRenderer {
         LOGGER.debug("清除当前字幕");
     }
 
-    // 新增暂停方法
+    // 暂停方法
     public static void pause() {
         if (isPaused) return;
 
@@ -60,7 +60,7 @@ public class SubtitleRenderer {
         LOGGER.debug("渲染器暂停 - 剩余时间: {}ms", remainingTimeOnPause);
     }
 
-    // 新增恢复方法
+    // 恢复方法
     public static void resume() {
         if (!isPaused) return;
 
@@ -97,7 +97,7 @@ public class SubtitleRenderer {
             return;
         }
 
-        // 修改渲染条件 - 考虑暂停状态
+
         boolean shouldRender = !currentSubtitle.isEmpty() &&
                 (isPaused || System.currentTimeMillis() <= displayUntil);
 
@@ -116,7 +116,7 @@ public class SubtitleRenderer {
                 currentSubtitle, x, y, isPaused ? "暂停中" : "播放中");
 
         renderBackground(gui, x, y, textWidth);
-        // 保持原来的显示效果 - 白色不透明文字
+
         gui.drawString(
                 Minecraft.getInstance().font,
                 currentSubtitle, x, y, 0xFFFFFF, true
@@ -152,7 +152,7 @@ public class SubtitleRenderer {
         }
 
         LOGGER.trace("渲染纯色背景");
-        // 保持原来的半透明黑色背景
+
         gui.fill(
                 x - padding, y - padding,
                 x + textWidth + padding, y + bgHeight,
