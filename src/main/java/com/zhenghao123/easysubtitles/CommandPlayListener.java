@@ -4,11 +4,8 @@ import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.CommandEvent;
@@ -54,6 +51,7 @@ public class CommandPlayListener {
             }
             LOGGER.info("声音ID: namespace={}, path={}", soundId.getNamespace(), soundId.getPath());
 
+            // 使用正确的常量名
             if (!ConfigHandler.SUBTITLE_NAMESPACE.equals(soundId.getNamespace())) {
                 LOGGER.debug("跳过非字幕声音: {}", soundId);
                 return;
@@ -118,6 +116,13 @@ public class CommandPlayListener {
 
     public static void playSoundAndSubtitle(ResourceLocation soundId, String soundName) {
         LOGGER.info("在客户端播放声音和字幕: {}", soundId);
+
+        // 清除任何可能的过期字幕
+        if (SubtitlePlayer.getDisplayUntil() > 0 && System.currentTimeMillis() > SubtitlePlayer.getDisplayUntil()) {
+            LOGGER.info("清除过期字幕");
+            SubtitlePlayer.stop();
+            SubtitleRenderer.clearSubtitle();
+        }
 
         // 播放音频
         try {

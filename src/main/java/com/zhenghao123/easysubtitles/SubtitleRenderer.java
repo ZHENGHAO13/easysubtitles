@@ -15,8 +15,8 @@ import org.apache.logging.log4j.Logger;
 
 @OnlyIn(Dist.CLIENT)
 public class SubtitleRenderer {
-    private static final Logger LOGGER = LogManager.getLogger();
     private static String currentSubtitle = "";
+    private static final Logger LOGGER = LogManager.getLogger();
     private static long displayUntil = 0;
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
@@ -39,12 +39,14 @@ public class SubtitleRenderer {
             LOGGER.debug("设置字幕显示: '{}' 持续 {}ms", text, duration);
             currentSubtitle = text;
             displayUntil = System.currentTimeMillis() + duration;
+            isPaused = false; // 重置暂停状态
         });
     }
 
     public static void clearSubtitle() {
         currentSubtitle = "";
         displayUntil = 0;
+        isPaused = false;
         LOGGER.debug("清除当前字幕");
     }
 
@@ -96,6 +98,12 @@ public class SubtitleRenderer {
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
         if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) {
+            return;
+        }
+
+        // 双重检查字幕是否应该消失
+        if (!isPaused && displayUntil > 0 && System.currentTimeMillis() > displayUntil) {
+            clearSubtitle();
             return;
         }
 
@@ -152,5 +160,15 @@ public class SubtitleRenderer {
                 x + textWidth + padding, y + bgHeight,
                 0x80000000
         );
+    }
+
+    // 获取当前字幕文本
+    public static String getCurrentSubtitle() {
+        return currentSubtitle;
+    }
+
+    // 获取显示结束时间
+    public static long getDisplayUntil() {
+        return displayUntil;
     }
 }

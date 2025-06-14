@@ -65,7 +65,6 @@ public class ServerCommandPlayListener {
             String soundName = soundId.getPath().substring(SOUND_PREFIX.length());
             LOGGER.info("提取声音名称: {}", soundName);
 
-            // 使用正确的 CommandSourceStack 类型
             CommandSourceStack source = event.getParseResults().getContext().getSource();
             String target = parts[3];
 

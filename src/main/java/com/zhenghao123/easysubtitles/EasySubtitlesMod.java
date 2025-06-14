@@ -2,7 +2,6 @@ package com.zhenghao123.easysubtitles;
 
 import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -51,7 +50,7 @@ public class EasySubtitlesMod {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         modEventBus.addListener(this::onCommonSetup);
-        if (FMLEnvironment.dist == Dist.CLIENT) {
+        if (FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
         }
 

@@ -30,11 +30,20 @@ public class PlaySubtitlePacket {
             if (ctx.get().getDirection().getReceptionSide().isClient()) {
                 LOGGER.info("客户端收到播放字幕请求: {}", fileName);
 
-                // 同时播放声音和字幕
+                // 清除任何正在显示的字幕
+                if (SubtitlePlayer.getDisplayUntil() > 0 && System.currentTimeMillis() > SubtitlePlayer.getDisplayUntil()) {
+                    LOGGER.info("清除过期字幕");
+                    SubtitlePlayer.stop();
+                    SubtitleRenderer.clearSubtitle();
+                }
+
+                // 生成声音ID
                 ResourceLocation soundId = new ResourceLocation(
                         EasySubtitlesMod.MODID,
                         "subtitles.sound." + fileName
                 );
+
+                // 同时播放声音和字幕
                 CommandPlayListener.playSoundAndSubtitle(soundId, fileName);
             }
         });

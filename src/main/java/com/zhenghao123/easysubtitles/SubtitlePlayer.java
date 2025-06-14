@@ -32,11 +32,12 @@ public class SubtitlePlayer {
     private static final AtomicLong totalPauseDuration = new AtomicLong(0);
     private static final AtomicLong lastPauseStart = new AtomicLong(0);
     private static final AtomicLong playbackStartTime = new AtomicLong(0);
+    private static final AtomicLong displayUntil = new AtomicLong(0);
 
     // 记录第一句字幕状态
     private static boolean firstSubtitleScheduled = false;
 
-    public static void play(File srtFile) {
+    public static void play(File srtFile) { // 修复参数名：srt极 -> srtFile
         if (Minecraft.getInstance() == null) return;
 
         LOGGER.info("播放字幕文件: {}", srtFile.getName());
@@ -60,6 +61,7 @@ public class SubtitlePlayer {
             currentSubtitles = subs;
             playbackStartTime.set(System.currentTimeMillis());
             firstSubtitleScheduled = false;
+            displayUntil.set(0);
 
             // 立即显示第一句字幕（如果开始时间为0）
             scheduleFirstSubtitleIfNeeded();
@@ -77,6 +79,7 @@ public class SubtitlePlayer {
         isPaused = false;
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
+        displayUntil.set(0);
         stop();
     }
 
@@ -96,7 +99,7 @@ public class SubtitlePlayer {
         SubtitleRenderer.clearSubtitle();
         currentSubtitles = null;
         currentFile = null;
-        isPaused = false;
+        isPaused = false; // 修复：is极 -> isPaused
         firstSubtitleScheduled = false;
     }
 
@@ -116,7 +119,7 @@ public class SubtitlePlayer {
         lastPauseStart.set(System.currentTimeMillis());
         SubtitleRenderer.pause();
 
-        if (scheduler != null) {
+        if (scheduler != null) { // 修复：scheduler !=极 -> scheduler != null
             scheduler.shutdownNow();
             scheduler = null;
         }
@@ -149,6 +152,8 @@ public class SubtitlePlayer {
                 long remainingTime = sub.getEndMs() - adjustedTime;
                 LOGGER.debug("显示当前活跃字幕: '{}' 剩余: {}ms", sub.getText(), remainingTime);
                 SubtitleRenderer.showSubtitle(sub.getText(), remainingTime);
+                // 更新显示结束时间
+                displayUntil.set(System.currentTimeMillis() + remainingTime);
                 break;
             }
         }
@@ -164,6 +169,7 @@ public class SubtitlePlayer {
             LOGGER.debug("立即显示第一句字幕: '{}' 持续: {}ms",
                     firstSubtitle.getText(), duration);
             SubtitleRenderer.showSubtitle(firstSubtitle.getText(), duration);
+            displayUntil.set(System.currentTimeMillis() + duration);
             firstSubtitleScheduled = true;
         }
     }
@@ -206,6 +212,7 @@ public class SubtitlePlayer {
                 if (adjustedDuration > 50) {
                     LOGGER.debug("显示滞后字幕: '{}' 剩余: {}ms", sub.getText(), adjustedDuration);
                     SubtitleRenderer.showSubtitle(sub.getText(), adjustedDuration);
+                    displayUntil.set(System.currentTimeMillis() + adjustedDuration);
                 }
                 continue;
             }
@@ -220,6 +227,8 @@ public class SubtitlePlayer {
                     LOGGER.debug("显示字幕: '{}' 持续: {}ms", sub.getText(), duration);
                     Minecraft.getInstance().execute(() -> {
                         SubtitleRenderer.showSubtitle(sub.getText(), duration);
+                        // 更新显示结束时间
+                        displayUntil.set(System.currentTimeMillis() + duration);
                     });
                 }
             }, adjustedDelay, TimeUnit.MILLISECONDS);
@@ -238,13 +247,20 @@ public class SubtitlePlayer {
             return;
         }
 
+        // 检查字幕是否应该超时消失
+        if (!isPaused && displayUntil.get() > 0 && System.currentTimeMillis() > displayUntil.get()) {
+            LOGGER.debug("字幕超时，清除显示");
+            SubtitleRenderer.clearSubtitle();
+            displayUntil.set(0); // 重置显示结束时间
+        }
+
         boolean isPauseScreen = Minecraft.getInstance().screen instanceof PauseScreen;
 
         // 只在单人游戏时暂停字幕，在多人游戏（连接到服务器）时不暂停
         if (Minecraft.getInstance().isSingleplayer()) {
             if (isPauseScreen && isPlaying()) {
                 if (!isPaused) {
-                    LOGGER.debug("检测到单人游戏暂停菜单打开，暂停字幕");
+                    LOGGER.debug("检测极单人游戏暂停菜单打开，暂停字幕");
                     pausePlayback();
                 }
             } else if (isPlaying() && isPaused) {
@@ -266,6 +282,12 @@ public class SubtitlePlayer {
         playbackStartTime.set(0);
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
+        displayUntil.set(0);
         firstSubtitleScheduled = false;
+    }
+
+    // 获取字幕显示结束时间
+    public static long getDisplayUntil() {
+        return displayUntil.get();
     }
 }
