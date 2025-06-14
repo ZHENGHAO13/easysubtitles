@@ -18,6 +18,10 @@ public class SubtitleRenderer {
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
 
+    // 添加暂停状态管理
+    private static boolean isPaused = false;
+    private static long remainingTimeOnPause = 0;
+
     public SubtitleRenderer() {
         LOGGER.info("字幕渲染器初始化");
     }
@@ -33,6 +37,42 @@ public class SubtitleRenderer {
             currentSubtitle = text;
             displayUntil = System.currentTimeMillis() + duration;
         });
+    }
+
+    public static void clearSubtitle() {
+        currentSubtitle = "";
+        displayUntil = 0;
+        LOGGER.debug("清除当前字幕");
+    }
+
+    // 新增暂停方法
+    public static void pause() {
+        if (isPaused) return;
+
+        isPaused = true;
+        long currentTime = System.currentTimeMillis();
+        if (displayUntil > currentTime) {
+            remainingTimeOnPause = displayUntil - currentTime;
+        } else {
+            remainingTimeOnPause = 0; // 如果字幕已过期
+        }
+
+        LOGGER.debug("渲染器暂停 - 剩余时间: {}ms", remainingTimeOnPause);
+    }
+
+    // 新增恢复方法
+    public static void resume() {
+        if (!isPaused) return;
+
+        isPaused = false;
+        if (remainingTimeOnPause > 0) {
+            displayUntil = System.currentTimeMillis() + remainingTimeOnPause;
+            LOGGER.debug("渲染器恢复 - 剩余时间: {}ms", remainingTimeOnPause);
+        } else {
+            // 如果剩余时间为0或负值，清除字幕
+            clearSubtitle();
+            LOGGER.debug("渲染器恢复 - 无剩余时间，清除字幕");
+        }
     }
 
     private static void loadBackgroundTexture() {
@@ -53,16 +93,17 @@ public class SubtitleRenderer {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
-
         if (event.getOverlay() != VanillaGuiOverlay.CHAT_PANEL.type()) {
             return;
         }
 
+        // 修改渲染条件 - 考虑暂停状态
+        boolean shouldRender = !currentSubtitle.isEmpty() &&
+                (isPaused || System.currentTimeMillis() <= displayUntil);
 
-        if (System.currentTimeMillis() > displayUntil || currentSubtitle.isEmpty()) {
+        if (!shouldRender) {
             return;
         }
-
 
         GuiGraphics gui = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();
@@ -71,8 +112,11 @@ public class SubtitleRenderer {
         int x = (screenWidth - textWidth) / 2;
         int y = screenHeight - 70; // 比聊天框稍高
 
-        LOGGER.trace("渲染字幕: '{}' 位置: {},{}", currentSubtitle, x, y);
+        LOGGER.trace("渲染字幕: '{}' 位置: {},{} [状态: {}]",
+                currentSubtitle, x, y, isPaused ? "暂停中" : "播放中");
+
         renderBackground(gui, x, y, textWidth);
+        // 保持原来的显示效果 - 白色不透明文字
         gui.drawString(
                 Minecraft.getInstance().font,
                 currentSubtitle, x, y, 0xFFFFFF, true
@@ -108,6 +152,7 @@ public class SubtitleRenderer {
         }
 
         LOGGER.trace("渲染纯色背景");
+        // 保持原来的半透明黑色背景
         gui.fill(
                 x - padding, y - padding,
                 x + textWidth + padding, y + bgHeight,
