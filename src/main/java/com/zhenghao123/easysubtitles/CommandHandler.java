@@ -7,9 +7,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,16 +18,26 @@ import java.io.File;
 public class CommandHandler {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    // 修改为 public static 方法，以便从其他类访问
+    public static void ensureSubtitleDirectoryExists() {
+        File subDir = getSubDir();
+        if (!subDir.exists()) {
+            LOGGER.info("创建字幕目录: {}", subDir.getAbsolutePath());
+            if (subDir.mkdirs()) {
+                LOGGER.info("目录创建成功");
+            } else {
+                LOGGER.error("目录创建失败: {}", subDir.getAbsolutePath());
+            }
+        }
+    }
+
     public static File getSubDir() {
         return FMLPaths.CONFIGDIR.get().resolve("easysubtitles").toFile();
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        File subDir = getSubDir();
-        if (!subDir.exists()) {
-            LOGGER.info("创建字幕目录: {}", subDir.getAbsolutePath());
-            subDir.mkdirs();
-        }
+        // 确保目录存在
+        ensureSubtitleDirectoryExists();
 
         LOGGER.info("注册/easysub命令");
         dispatcher.register(Commands.literal("easysub")

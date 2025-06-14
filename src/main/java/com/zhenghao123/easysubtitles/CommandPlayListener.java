@@ -3,6 +3,7 @@ package com.zhenghao123.easysubtitles;
 import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
@@ -28,7 +29,7 @@ public class CommandPlayListener {
 
         try {
             String fullCommand = event.getParseResults().getReader().getString().trim();
-            LOGGER.info("捕获命令: {}", fullCommand);
+            LOGGER.info("客户端捕获命令: {}", fullCommand);
 
             if (!fullCommand.startsWith("/playsound ") && !fullCommand.startsWith("playsound ")) {
                 LOGGER.debug("非/playsound命令，跳过处理");
@@ -82,8 +83,8 @@ public class CommandPlayListener {
                 return;
             }
 
-            playSoundLocally(soundId, player);
-            playSubtitleFile(soundName);
+            // 同时播放音频和字幕
+            playSoundAndSubtitle(soundId, soundName);
 
         } catch (Exception e) {
             LOGGER.error("处理命令时出错", e);
@@ -91,7 +92,7 @@ public class CommandPlayListener {
     }
 
     public static void playSubtitleFile(String fileName) {
-        LOGGER.info("客户端收到播放字幕请求: {}", fileName);
+        LOGGER.info("播放字幕文件: {}", fileName);
         File file = new File(CommandHandler.getSubDir(), fileName + ".srt");
         SubtitlePlayer.play(file);
     }
@@ -115,24 +116,30 @@ public class CommandPlayListener {
         return false;
     }
 
-    private static void playSoundLocally(ResourceLocation soundId, LocalPlayer player) {
-        LOGGER.info("在客户端播放声音: {}", soundId);
+    public static void playSoundAndSubtitle(ResourceLocation soundId, String soundName) {
+        LOGGER.info("在客户端播放声音和字幕: {}", soundId);
 
+        // 播放音频
         try {
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundId);
-            Vec3 pos = player.position();
+            if (soundEvent == null) {
+                LOGGER.error("无法创建声音事件: {}", soundId);
+                return;
+            }
 
-            player.clientLevel.playSound(
-                    player,
-                    pos.x, pos.y, pos.z,
+            // 创建声音实例并播放
+            SimpleSoundInstance soundInstance = SimpleSoundInstance.forUI(
                     soundEvent,
-                    SoundSource.MASTER,
-                    1.0f,
-                    1.0f
+                    1.0f, // 音量
+                    1.0f  // 音调
             );
 
+            Minecraft.getInstance().getSoundManager().play(soundInstance);
         } catch (Exception e) {
             LOGGER.error("播放声音失败", e);
         }
+
+        // 播放字幕
+        playSubtitleFile(soundName);
     }
 }

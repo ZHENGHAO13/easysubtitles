@@ -14,10 +14,13 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.File;
 
 @Mod(EasySubtitlesMod.MODID)
 public class EasySubtitlesMod {
@@ -34,6 +37,9 @@ public class EasySubtitlesMod {
 
     public EasySubtitlesMod() {
         LOGGER.info("EasySubtitles 模组正在初始化...");
+
+        // 在模组启动时确保字幕目录存在
+        ensureSubtitleDirectoryExists();
 
         // 注册配置
         ModLoadingContext.get().registerConfig(
@@ -52,6 +58,19 @@ public class EasySubtitlesMod {
         MinecraftForge.EVENT_BUS.register(this);
 
         LOGGER.info("主类初始化完成");
+    }
+
+    // 新建方法，直接在EasySubtitlesMod类中处理目录创建
+    private void ensureSubtitleDirectoryExists() {
+        File subDir = FMLPaths.CONFIGDIR.get().resolve("easysubtitles").toFile();
+        if (!subDir.exists()) {
+            LOGGER.info("创建字幕目录: {}", subDir.getAbsolutePath());
+            if (subDir.mkdirs()) {
+                LOGGER.info("目录创建成功");
+            } else {
+                LOGGER.error("目录创建失败: {}", subDir.getAbsolutePath());
+            }
+        }
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {

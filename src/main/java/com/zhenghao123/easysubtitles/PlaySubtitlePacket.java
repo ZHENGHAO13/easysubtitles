@@ -3,10 +3,13 @@ package com.zhenghao123.easysubtitles;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.function.Supplier;
 
 public class PlaySubtitlePacket {
+    private static final Logger LOGGER = LogManager.getLogger();
     private final String fileName;
 
     public PlaySubtitlePacket(String fileName) {
@@ -25,7 +28,14 @@ public class PlaySubtitlePacket {
         ctx.get().enqueueWork(() -> {
             // 只在客户端执行
             if (ctx.get().getDirection().getReceptionSide().isClient()) {
-                CommandPlayListener.playSubtitleFile(fileName);
+                LOGGER.info("客户端收到播放字幕请求: {}", fileName);
+
+                // 同时播放声音和字幕
+                ResourceLocation soundId = new ResourceLocation(
+                        EasySubtitlesMod.MODID,
+                        "subtitles.sound." + fileName
+                );
+                CommandPlayListener.playSoundAndSubtitle(soundId, fileName);
             }
         });
         ctx.get().setPacketHandled(true);

@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -239,14 +240,15 @@ public class SubtitlePlayer {
 
         boolean isPauseScreen = Minecraft.getInstance().screen instanceof PauseScreen;
 
-        if (isPauseScreen && isPlaying()) {
-            if (!isPaused) {
-                LOGGER.debug("检测到暂停菜单打开，暂停字幕");
-                pausePlayback();
-            }
-        } else if (isPlaying()) {
-            if (isPaused) {
-                LOGGER.debug("检测到暂停菜单关闭，恢复字幕");
+        // 只在单人游戏时暂停字幕，在多人游戏（连接到服务器）时不暂停
+        if (Minecraft.getInstance().isSingleplayer()) {
+            if (isPauseScreen && isPlaying()) {
+                if (!isPaused) {
+                    LOGGER.debug("检测到单人游戏暂停菜单打开，暂停字幕");
+                    pausePlayback();
+                }
+            } else if (isPlaying() && isPaused) {
+                LOGGER.debug("检测到单人游戏暂停菜单关闭，恢复字幕");
                 resumePlayback();
             }
         }
