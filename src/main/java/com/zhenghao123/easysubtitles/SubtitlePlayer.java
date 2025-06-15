@@ -37,7 +37,7 @@ public class SubtitlePlayer {
     // 记录第一句字幕状态
     private static boolean firstSubtitleScheduled = false;
 
-    public static void play(File srtFile) { // 修复参数名：srt极 -> srtFile
+    public static void play(File srtFile) {
         if (Minecraft.getInstance() == null) return;
 
         LOGGER.info("播放字幕文件: {}", srtFile.getName());
@@ -57,7 +57,7 @@ public class SubtitlePlayer {
                 return;
             }
 
-            LOGGER.info("解析到 {} 个字幕", subs.size());
+            LOGGER.info("解析到 {} 个字极", subs.size());
             currentSubtitles = subs;
             playbackStartTime.set(System.currentTimeMillis());
             firstSubtitleScheduled = false;
@@ -80,15 +80,19 @@ public class SubtitlePlayer {
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
         displayUntil.set(0);
-        stop();
+        stop(false); // 静默停止
     }
 
-    public static void stop() {
-        LOGGER.info("停止当前字幕播放");
+    // 停止字幕（带日志控制）
+    public static void stop(boolean log) {
+        if (log) {
+            LOGGER.info("停止当前字幕播放");
+        }
+
         if (scheduler != null) {
             scheduler.shutdownNow();
             try {
-                if (!scheduler.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                if (!scheduler.awaitTermination(500, TimeUnit.MILLISECONDS) && log) {
                     LOGGER.warn("字幕调度器未能在500毫秒内终止");
                 }
             } catch (InterruptedException e) {
@@ -99,8 +103,19 @@ public class SubtitlePlayer {
         SubtitleRenderer.clearSubtitle();
         currentSubtitles = null;
         currentFile = null;
-        isPaused = false; // 修复：is极 -> isPaused
+        isPaused = false;
         firstSubtitleScheduled = false;
+
+        // 重置所有计时器
+        playbackStartTime.set(0);
+        totalPauseDuration.set(0);
+        lastPauseStart.set(0);
+        displayUntil.set(0);
+    }
+
+    // 默认停止方法（记录日志）
+    public static void stop() {
+        stop(true);
     }
 
     public static File getCurrentFile() {
@@ -119,7 +134,7 @@ public class SubtitlePlayer {
         lastPauseStart.set(System.currentTimeMillis());
         SubtitleRenderer.pause();
 
-        if (scheduler != null) { // 修复：scheduler !=极 -> scheduler != null
+        if (scheduler != null) {
             scheduler.shutdownNow();
             scheduler = null;
         }
@@ -260,7 +275,7 @@ public class SubtitlePlayer {
         if (Minecraft.getInstance().isSingleplayer()) {
             if (isPauseScreen && isPlaying()) {
                 if (!isPaused) {
-                    LOGGER.debug("检测极单人游戏暂停菜单打开，暂停字幕");
+                    LOGGER.debug("检测到单人游戏暂停菜单打开，暂停字幕");
                     pausePlayback();
                 }
             } else if (isPlaying() && isPaused) {
@@ -278,7 +293,7 @@ public class SubtitlePlayer {
 
     public static void resetOnWorldExit() {
         LOGGER.info("完全重置字幕播放器");
-        stop();
+        stop(false); // 静默停止
         playbackStartTime.set(0);
         totalPauseDuration.set(0);
         lastPauseStart.set(0);

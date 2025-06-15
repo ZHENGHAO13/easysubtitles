@@ -22,17 +22,33 @@ public class CommandPlayListener {
 
     @SubscribeEvent
     public void onCommand(CommandEvent event) {
-        if (!ConfigHandler.AUTO_SUBTITLE.get()) return;
+        String fullCommand = event.getParseResults().getReader().getString().trim();
+        LOGGER.info("客户端捕获命令: {}", fullCommand);
 
-        try {
-            String fullCommand = event.getParseResults().getReader().getString().trim();
-            LOGGER.info("客户端捕获命令: {}", fullCommand);
-
-            if (!fullCommand.startsWith("/playsound ") && !fullCommand.startsWith("playsound ")) {
-                LOGGER.debug("非/playsound命令，跳过处理");
-                return;
+        if (isPlaySoundCommand(fullCommand)) {
+            if (ConfigHandler.AUTO_SUBTITLE.get()) {
+                handlePlaySoundCommand(event, fullCommand);
+            } else {
+                LOGGER.debug("自动字幕功能已禁用，跳过处理");
             }
+        } else if (isStopSoundCommand(fullCommand)) {
+            handleStopSoundCommand(fullCommand);
+        }
+    }
 
+    // 检查是否为/playsound命令
+    private boolean isPlaySoundCommand(String fullCommand) {
+        return fullCommand.startsWith("/playsound ") || fullCommand.startsWith("playsound ");
+    }
+
+    // 检查是否为/stopsound命令
+    private boolean isStopSoundCommand(String fullCommand) {
+        return fullCommand.startsWith("/stopsound ") || fullCommand.startsWith("stopsound ");
+    }
+
+    // 处理/playsound命令（原有逻辑）
+    private void handlePlaySoundCommand(CommandEvent event, String fullCommand) {
+        try {
             if (fullCommand.startsWith("/")) {
                 fullCommand = fullCommand.substring(1);
             }
@@ -51,7 +67,6 @@ public class CommandPlayListener {
             }
             LOGGER.info("声音ID: namespace={}, path={}", soundId.getNamespace(), soundId.getPath());
 
-            // 使用正确的常量名
             if (!ConfigHandler.SUBTITLE_NAMESPACE.equals(soundId.getNamespace())) {
                 LOGGER.debug("跳过非字幕声音: {}", soundId);
                 return;
@@ -89,6 +104,40 @@ public class CommandPlayListener {
         }
     }
 
+    // 处理/stopsound命令
+    private void handleStopSoundCommand(String fullCommand) {
+        try {
+            LOGGER.info("检测到/stopsound命令，解析并尝试停止字幕");
+
+            if (fullCommand.startsWith("/")) {
+                fullCommand = fullCommand.substring(1);
+            }
+
+            String[] tokens = fullCommand.split("\\s+");
+
+            // 获取目标玩家参数（如果有的话）
+            String targetPlayer = tokens.length >= 2 ? tokens[1] : "";
+
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null) {
+                LOGGER.warn("无法获取本地玩家");
+                return;
+            }
+
+            // 检查是否针对当前玩家
+            if (isForCurrentPlayer(targetPlayer, player.getName().getString())) {
+                LOGGER.info("停止声音命令针对当前玩家，停止所有字幕播放");
+
+                // 静默停止字幕，不记录过多的停止日志
+                SubtitlePlayer.stop(false);
+            } else {
+                LOGGER.debug("停止声音命令不针对当前玩家，跳过处理");
+            }
+        } catch (Exception e) {
+            LOGGER.error("处理/stopsound命令时出错", e);
+        }
+    }
+
     public static void playSubtitleFile(String fileName) {
         LOGGER.info("播放字幕文件: {}", fileName);
         File file = new File(CommandHandler.getSubDir(), fileName + ".srt");
@@ -100,14 +149,16 @@ public class CommandPlayListener {
             return true;
         }
 
+        // 空目标或默认可执行时视为当前玩家
+        if (target == null || target.isEmpty() ||
+                target.equals("@s") || target.equals("@p") || target.equals("@a")) {
+            return true;
+        }
+
         String[] targets = target.split(",");
         for (String t : targets) {
             t = t.trim();
-            if (t.equals("@a") ||
-                    t.equals("@s") ||
-                    t.equals("@p") ||
-                    t.equals("*") ||
-                    t.equalsIgnoreCase(currentPlayerName)) {
+            if (t.equalsIgnoreCase(currentPlayerName)) {
                 return true;
             }
         }
@@ -120,7 +171,7 @@ public class CommandPlayListener {
         // 清除任何可能的过期字幕
         if (SubtitlePlayer.getDisplayUntil() > 0 && System.currentTimeMillis() > SubtitlePlayer.getDisplayUntil()) {
             LOGGER.info("清除过期字幕");
-            SubtitlePlayer.stop();
+            SubtitlePlayer.stop(false); // 静默停止
             SubtitleRenderer.clearSubtitle();
         }
 
