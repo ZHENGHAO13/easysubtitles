@@ -31,15 +31,15 @@ public class SubtitleRenderer {
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
 
-    // 暂停状态管理
-    private static boolean isPaused = false;
-    private static long pausedAt = 0;
+    // 暂停状态管理 (已移除暂停功能)
+    // private static boolean isPaused = false;
+    // private static long pausedAt = 0;
 
     // 多行字幕处理
     private static final List<FormattedCharSequence> subtitleLines = new ArrayList<>();
     private static String lastText = "";
 
-    // 强制重绘标志 - 确保暂停后恢复时立即渲染
+    // 强制重绘标志
     private static boolean needsRedraw = false;
 
     public SubtitleRenderer() {
@@ -57,7 +57,6 @@ public class SubtitleRenderer {
             currentSubtitle = text;
             displayStartedAt = System.currentTimeMillis();
             displayDuration = duration;
-            isPaused = false;
             needsRedraw = true; // 设置需要重绘标志
 
             // 清除旧的行
@@ -70,66 +69,12 @@ public class SubtitleRenderer {
         currentSubtitle = "";
         displayStartedAt = 0;
         displayDuration = 0;
-        isPaused = false;
-        pausedAt = 0;
+        // isPaused = false;
+        // pausedAt = 0;
         subtitleLines.clear();
         lastText = "";
         needsRedraw = false;
         LOGGER.debug("清除当前字幕");
-    }
-
-    // 暂停方法
-    public static void pause() {
-        if (isPaused) return;
-        if (currentSubtitle.isEmpty()) return; // 没有字幕时不处理
-
-        LOGGER.debug("暂停字幕: '{}'", currentSubtitle);
-
-        isPaused = true;
-        pausedAt = System.currentTimeMillis();
-        needsRedraw = true; // 需要重绘
-
-        LOGGER.debug("字幕暂停，剩余时间: {}ms", getRemainingTime());
-    }
-
-    // 恢复方法
-    public static void resume() {
-        if (!isPaused) return;
-        if (pausedAt == 0) return; // 从未暂停过
-
-        long remainingTime = getRemainingTime();
-        // 如果暂停时间已超过剩余时间，清除字幕
-        if (remainingTime <= 0) {
-            LOGGER.debug("字幕暂停时间超过剩余时间，清除字幕");
-            clearSubtitle();
-            return;
-        }
-
-        LOGGER.debug("恢复字幕: '{}'", currentSubtitle);
-        LOGGER.debug("暂停持续时间: {}ms", (System.currentTimeMillis() - pausedAt));
-
-        // 计算暂停期间消耗的时间
-        long pausedDuration = System.currentTimeMillis() - pausedAt;
-
-        // 调整开始时间，使得剩余时间不变
-        displayStartedAt += pausedDuration;
-
-        isPaused = false;
-        pausedAt = 0;
-        needsRedraw = true; // 需要重绘
-
-        LOGGER.debug("字幕恢复，剩余时间: {}ms", getRemainingTime());
-    }
-
-    // 计算剩余播放时间
-    private static long getRemainingTime() {
-        if (currentSubtitle.isEmpty()) return 0;
-        if (displayStartedAt == 0) return 0;
-
-        if (isPaused) {
-            return displayDuration - (pausedAt - displayStartedAt);
-        }
-        return displayDuration - (System.currentTimeMillis() - displayStartedAt);
     }
 
     // 获取渲染状态
@@ -141,10 +86,16 @@ public class SubtitleRenderer {
         long remainingTime = getRemainingTime();
 
         // 需要渲染的情况：
-        // 1. 剩余时间 > 0（字幕正在播放）
-        // 2. 暂停状态（字幕需要保持显示）
-        // 3. 需要强制重绘（状态变化后第一帧）
-        return remainingTime > 0 || isPaused || needsRedraw;
+        // 1. 剩余时间 > 0
+        // 2. 需要强制重绘（状态变化后第一帧）
+        return remainingTime > 0 || needsRedraw;
+    }
+
+    // 计算剩余播放时间
+    private static long getRemainingTime() {
+        if (currentSubtitle.isEmpty()) return 0;
+        if (displayStartedAt == 0) return 0;
+        return displayDuration - (System.currentTimeMillis() - displayStartedAt);
     }
 
     public static void loadBackgroundTexture() {
@@ -179,9 +130,9 @@ public class SubtitleRenderer {
             return;
         }
 
-        // 如果有字幕但剩余时间为负且不是暂停状态，清除字幕
+        // 如果有字幕但剩余时间为负，清除字幕
         long remainingTime = getRemainingTime();
-        if (!isPaused && remainingTime <= 0) {
+        if (remainingTime <= 0) {
             LOGGER.debug("字幕时间到期，自动清除: '{}'", currentSubtitle);
             clearSubtitle();
             return;
@@ -212,14 +163,6 @@ public class SubtitleRenderer {
 
         // 渲染字幕文本
         renderText(gui, font, x, y);
-
-        // 如果字幕暂停，显示暂停指示器
-        if (isPaused) {
-            String pausedText = "ESC菜单暂停播放";
-            int centerX = (screenWidth - font.width(pausedText)) / 2;
-            int pauseY = y - font.lineHeight * 3;
-            gui.drawString(font, pausedText, centerX, pauseY, 0xFFFF00, true);
-        }
     }
 
     private static void updateSubtitleLines(Font font) {
@@ -431,25 +374,15 @@ public class SubtitleRenderer {
         return getRemainingTime();
     }
 
-    // 获取是否暂停状态
-    public static boolean isPaused() {
-        return isPaused;
-    }
-
-    // 自动暂停与恢复逻辑 - 集成到游戏中
+    // 自动终止逻辑 - 集成到游戏中
     @SubscribeEvent
     public static void onScreenOpen(ScreenEvent.Opening event) {
         if (event.getScreen().isPauseScreen()) {
-            LOGGER.debug("检测到ESC菜单打开");
-            pause(); // 暂停当前字幕
-        }
-    }
-
-    @SubscribeEvent
-    public static void onScreenClose(ScreenEvent.Closing event) {
-        if (event.getScreen().isPauseScreen()) {
-            LOGGER.debug("检测到ESC菜单关闭");
-            resume(); // 恢复当前字幕
+            LOGGER.debug("检测到ESC菜单打开 - 终止字幕");
+            // 直接终止字幕
+            SubtitlePlayer.stop();
+            // 清除当前正在显示的字幕
+            clearSubtitle();
         }
     }
 }

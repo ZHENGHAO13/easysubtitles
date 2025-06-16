@@ -9,17 +9,38 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 @OnlyIn(Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = EasySubtitlesMod.MODID, value = Dist.CLIENT)
 public class CommandPlayListener {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final String SOUND_PREFIX = "subtitles.sound.";
+
+    // 跟踪当前播放的声音实例和字幕信息
+    private static final Map<ResourceLocation, PlaybackInfo> activePlaybacks = new HashMap<>();
+
+    // 记录播放信息类
+    private static class PlaybackInfo {
+        ResourceLocation soundId;
+        String soundName;
+        SimpleSoundInstance soundInstance;
+
+        PlaybackInfo(ResourceLocation soundId, String soundName, SimpleSoundInstance soundInstance) {
+            this.soundId = soundId;
+            this.soundName = soundName;
+            this.soundInstance = soundInstance;
+        }
+    }
 
     @SubscribeEvent
     public void onCommand(CommandEvent event) {
@@ -34,6 +55,15 @@ public class CommandPlayListener {
             }
         } else if (isStopSoundCommand(fullCommand)) {
             handleStopSoundCommand(fullCommand);
+        }
+    }
+
+    // 在ESC菜单打开时停止所有播放
+    @SubscribeEvent
+    public static void onScreenOpen(ScreenEvent.Opening event) {
+        if (event.getScreen().isPauseScreen()) {
+            LOGGER.debug("检测到ESC菜单打开 - 终止所有音频和字幕播放");
+            stopAllPlaybacks();
         }
     }
 
@@ -133,11 +163,9 @@ public class CommandPlayListener {
                 LOGGER.info("停止声音命令针对当前玩家，停止所有字幕播放");
 
                 if (soundLocation != null) {
-                    Minecraft.getInstance().getSoundManager().stop(soundLocation, source);
-                    SubtitlePlayer.stop(soundLocation);
+                    stopSpecificPlayback(soundLocation);
                 } else {
-                    Minecraft.getInstance().getSoundManager().stop(null, source);
-                    SubtitlePlayer.stop(true);
+                    stopAllPlaybacks();
                 }
             } else {
                 LOGGER.debug("停止声音命令不针对当前玩家，跳过处理");
@@ -145,6 +173,45 @@ public class CommandPlayListener {
         } catch (Exception e) {
             LOGGER.error("处理/stopsound命令时出错", e);
         }
+    }
+
+    // 停止特定声音的字幕和音频
+    private static void stopSpecificPlayback(ResourceLocation soundId) {
+        PlaybackInfo info = activePlaybacks.get(soundId);
+        if (info != null) {
+            LOGGER.info("停止特定播放: {}", soundId);
+
+            // 停止音频
+            if (info.soundInstance != null) {
+                Minecraft.getInstance().getSoundManager().stop(info.soundInstance);
+            }
+
+            // 停止字幕
+            SubtitlePlayer.stop(soundId);
+
+            // 移除跟踪
+            activePlaybacks.remove(soundId);
+        } else {
+            LOGGER.debug("找不到特定播放: {}", soundId);
+        }
+    }
+
+    // 停止所有播放（字幕和音频）
+    public static void stopAllPlaybacks() {
+        LOGGER.info("停止所有音频和字幕播放");
+
+        // 停止所有音频
+        for (PlaybackInfo info : activePlaybacks.values()) {
+            if (info.soundInstance != null) {
+                Minecraft.getInstance().getSoundManager().stop(info.soundInstance);
+            }
+        }
+
+        // 停止所有字幕
+        SubtitlePlayer.stop(true);
+
+        // 清空跟踪
+        activePlaybacks.clear();
     }
 
     public static void playSubtitleFile(String fileName) {
@@ -176,10 +243,10 @@ public class CommandPlayListener {
     public static void playSoundAndSubtitle(ResourceLocation soundId, String soundName) {
         LOGGER.info("在客户端播放声音和字幕: {}", soundId);
 
-        if (SubtitlePlayer.getDisplayUntil() > 0 && System.currentTimeMillis() > SubtitlePlayer.getDisplayUntil()) {
-            LOGGER.info("清除过期字幕");
-            SubtitlePlayer.stop(false);
-            SubtitleRenderer.clearSubtitle();
+        // 如果已有相同的播放，先停止
+        if (activePlaybacks.containsKey(soundId)) {
+            LOGGER.info("声音已存在，先停止: {}", soundId);
+            stopSpecificPlayback(soundId);
         }
 
         try {
@@ -195,11 +262,18 @@ public class CommandPlayListener {
                     1.0f
             );
 
+            // 播放音频
             Minecraft.getInstance().getSoundManager().play(soundInstance);
+
+            // 保存播放信息
+            PlaybackInfo info = new PlaybackInfo(soundId, soundName, soundInstance);
+            activePlaybacks.put(soundId, info);
+
         } catch (Exception e) {
             LOGGER.error("播放声音失败", e);
         }
 
+        // 播放字幕
         playSubtitleFile(soundName);
     }
 }

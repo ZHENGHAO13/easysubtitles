@@ -26,10 +26,10 @@ public class SubtitlePlayer {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private static boolean isPaused = false;
-
-    private static final AtomicLong totalPauseDuration = new AtomicLong(0);
-    private static final AtomicLong lastPauseStart = new AtomicLong(0);
+    // 已移除暂停功能
+    // private static boolean isPaused = false;
+    // private static final AtomicLong totalPauseDuration = new AtomicLong(0);
+    // private static final AtomicLong lastPauseStart = new AtomicLong(0);
     private static final AtomicLong playbackStartTime = new AtomicLong(0);
     private static final AtomicLong displayUntil = new AtomicLong(0);
 
@@ -72,9 +72,9 @@ public class SubtitlePlayer {
     }
 
     private static void resetState() {
-        isPaused = false;
-        totalPauseDuration.set(0);
-        lastPauseStart.set(0);
+        // isPaused = false;
+        // totalPauseDuration.set(0);
+        // lastPauseStart.set(0);
         displayUntil.set(0);
         stop(false);
     }
@@ -98,12 +98,12 @@ public class SubtitlePlayer {
         SubtitleRenderer.clearSubtitle();
         currentSubtitles = null;
         currentFile = null;
-        isPaused = false;
+        // isPaused = false;
         firstSubtitleScheduled = false;
 
         playbackStartTime.set(0);
-        totalPauseDuration.set(0);
-        lastPauseStart.set(0);
+        // totalPauseDuration.set(0);
+        // lastPauseStart.set(0);
         displayUntil.set(0);
     }
 
@@ -137,41 +137,23 @@ public class SubtitlePlayer {
         return currentSubtitles != null && !currentSubtitles.isEmpty();
     }
 
+    // 已移除暂停功能
+    /*
     public static void pausePlayback() {
-        if (!isPlaying() || isPaused) return;
-
-        LOGGER.debug("字幕播放器暂停");
-        isPaused = true;
-        lastPauseStart.set(System.currentTimeMillis());
-        SubtitleRenderer.pause();
-
-        if (scheduler != null) {
-            scheduler.shutdownNow();
-            scheduler = null;
-        }
+        // ... 已移除
     }
 
     public static void resumePlayback() {
-        if (!isPlaying() || !isPaused) return;
-
-        LOGGER.debug("字幕播放器恢复");
-        long pauseDuration = System.currentTimeMillis() - lastPauseStart.get();
-        totalPauseDuration.addAndGet(pauseDuration);
-
-        isPaused = false;
-
-        showCurrentActiveSubtitle();
-
-        scheduleRemainingSubtitles();
-
-        SubtitleRenderer.resume();
+        // ... 已移除
     }
+    */
 
     private static void showCurrentActiveSubtitle() {
         if (currentSubtitles == null || currentSubtitles.isEmpty()) return;
 
         long currentTime = System.currentTimeMillis();
-        long adjustedTime = currentTime - playbackStartTime.get() - totalPauseDuration.get();
+        long adjustedTime = currentTime - playbackStartTime.get();
+        // - totalPauseDuration.get(); // 移除暂停功能
 
         for (SRTParser.Subtitle sub : currentSubtitles) {
             if (adjustedTime >= sub.getStartMs() && adjustedTime <= sub.getEndMs()) {
@@ -215,17 +197,17 @@ public class SubtitlePlayer {
         if (currentSubtitles == null) return;
 
         long startTimestamp = playbackStartTime.get();
-        long offset = totalPauseDuration.get();
+        // long offset = totalPauseDuration.get(); // 移除暂停功能
         long currentTime = System.currentTimeMillis();
 
-        LOGGER.debug("开始播放: offset={}ms, startTime={}ms", offset, startTimestamp);
+        LOGGER.debug("开始播放: startTime={}ms", startTimestamp);
 
         int subtitleIndex = firstSubtitleScheduled ? 1 : 0;
 
         for (int i = subtitleIndex; i < currentSubtitles.size(); i++) {
             final SRTParser.Subtitle sub = currentSubtitles.get(i);
 
-            long adjustedStart = startTimestamp + offset + sub.getStartMs();
+            long adjustedStart = startTimestamp + sub.getStartMs(); // 移除暂停偏移
             long adjustedDelay = adjustedStart - currentTime;
 
             long duration = sub.getEndMs() - sub.getStartMs();
@@ -248,13 +230,11 @@ public class SubtitlePlayer {
             }
 
             scheduler.schedule(() -> {
-                if (!isPaused) {
-                    LOGGER.debug("显示字幕: '{}' 持续: {}ms", sub.getText(), duration);
-                    Minecraft.getInstance().execute(() -> {
-                        SubtitleRenderer.showSubtitle(sub.getText(), duration);
-                        displayUntil.set(System.currentTimeMillis() + duration);
-                    });
-                }
+                LOGGER.debug("显示字幕: '{}' 持续: {}ms", sub.getText(), duration);
+                Minecraft.getInstance().execute(() -> {
+                    SubtitleRenderer.showSubtitle(sub.getText(), duration);
+                    displayUntil.set(System.currentTimeMillis() + duration);
+                });
             }, adjustedDelay, TimeUnit.MILLISECONDS);
 
             LOGGER.trace("调度字幕: '{}' 延迟: {}ms", sub.getText(), adjustedDelay);
@@ -271,25 +251,14 @@ public class SubtitlePlayer {
             return;
         }
 
-        if (!isPaused && displayUntil.get() > 0 && System.currentTimeMillis() > displayUntil.get()) {
+        // 检查字幕是否超时
+        if (displayUntil.get() > 0 && System.currentTimeMillis() > displayUntil.get()) {
             LOGGER.debug("字幕超时，清除显示");
             SubtitleRenderer.clearSubtitle();
             displayUntil.set(0);
         }
 
-        boolean isPauseScreen = Minecraft.getInstance().screen instanceof PauseScreen;
-
-        if (Minecraft.getInstance().isSingleplayer()) {
-            if (isPauseScreen && isPlaying()) {
-                if (!isPaused) {
-                    LOGGER.debug("检测到单人游戏暂停菜单打开，暂停字幕");
-                    pausePlayback();
-                }
-            } else if (isPlaying() && isPaused) {
-                LOGGER.debug("检测到单人游戏暂停菜单关闭，恢复字幕");
-                resumePlayback();
-            }
-        }
+        // 已移除单人游戏暂停菜单检测
     }
 
     @SubscribeEvent
@@ -302,8 +271,8 @@ public class SubtitlePlayer {
         LOGGER.info("完全重置字幕播放器");
         stop(false);
         playbackStartTime.set(0);
-        totalPauseDuration.set(0);
-        lastPauseStart.set(0);
+        // totalPauseDuration.set(0);
+        // lastPauseStart.set(0);
         displayUntil.set(0);
         firstSubtitleScheduled = false;
     }

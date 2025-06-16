@@ -23,6 +23,12 @@ public class ConfigHandler {
         CUSTOM          // 自定义位置
     }
 
+    // 位置调整模式枚举
+    public enum PositionMode {
+        RATIO,      // 使用比例调整
+        PIXEL       // 使用像素调整
+    }
+
     // 配置选项定义
     // ------------------- 背景设置 -------------------
     public static final ForgeConfigSpec.BooleanValue USE_IMAGE_BG;           // 是否使用图片背景
@@ -34,8 +40,12 @@ public class ConfigHandler {
 
     // ------------------- 显示设置 -------------------
     public static final ForgeConfigSpec.EnumValue<PositionPreset> POSITION_PRESET; // 字幕位置预设
-    public static final ForgeConfigSpec.DoubleValue X_OFFSET;               // 自定义X偏移
-    public static final ForgeConfigSpec.DoubleValue Y_OFFSET;               // 自定义Y偏移
+    public static final ForgeConfigSpec.EnumValue<PositionMode> POSITION_MODE;    // 位置调整模式
+    public static final ForgeConfigSpec.DoubleValue X_OFFSET;               // 自定义X偏移（比例）
+    public static final ForgeConfigSpec.DoubleValue Y_OFFSET;               // 自定义Y偏移（比例）
+    public static final ForgeConfigSpec.IntValue PIXEL_X_OFFSET;            // 自定义X偏移（像素）
+    public static final ForgeConfigSpec.IntValue PIXEL_Y_OFFSET;            // 自定义Y偏移（像素）
+    public static final ForgeConfigSpec.BooleanValue CENTER_ALIGNED;        // 像素偏移是否基于中心
     public static final ForgeConfigSpec.IntValue MAX_WIDTH;                 // 最大宽度
     public static final ForgeConfigSpec.IntValue FONT_HEIGHT;               // 字体高度
     public static final ForgeConfigSpec.DoubleValue BACKGROUND_OPACITY;     // 背景不透明度
@@ -97,19 +107,52 @@ public class ConfigHandler {
                 "BOTTOM_CENTER - 底部居中",
                 "BOTTOM_RIGHT - 右下角",
                 "CUSTOM - 自定义位置"
-        ).defineEnum("position_preset", PositionPreset.BOTTOM_CENTER);
+        ).defineEnum("position_preset", PositionPreset.CUSTOM);
+
+        POSITION_MODE = BUILDER.comment(
+                "位置调整模式",
+                "RATIO: 使用比例定位 (0.0-1.0) - 适用于不同分辨率",
+                "PIXEL: 使用像素定位 - 提供精确控制"
+        ).defineEnum("position_mode", PositionMode.RATIO);
 
         X_OFFSET = BUILDER.comment(
                 "自定义X位置偏移 (0.0 = 左侧, 1.0 = 右侧)",
-                "仅在位置预设设置为 CUSTOM 时使用",
+                "仅在位置预设设置为 CUSTOM 并且位置模式为 RATIO 时生效",
                 "表示相对于屏幕宽度的偏移比例"
         ).defineInRange("x_offset", 0.5, 0.0, 1.0);
 
         Y_OFFSET = BUILDER.comment(
                 "自定义Y位置偏移 (0.0 = 顶部, 1.0 = 底部)",
-                "仅在位置预设设置为 CUSTOM 时使用",
-                "表示相对于屏幕高度的偏移比例"
-        ).defineInRange("y_offset", 0.8, 0.0, 1.0);
+                "仅在位置预设设置为 CUSTOM 并且位置模式为 RATIO 时生效",
+                "表示相对于屏幕高度的偏移比例",
+                "设置值: 0.8 - 底部上方20%位置",
+                "设置值: 0.48 - 比原版物品名称高50%的位置"
+        ).defineInRange("y_offset", 0.795, 0.0, 1.0);
+
+        PIXEL_X_OFFSET = BUILDER.comment(
+                "X方向像素偏移",
+                "仅在位置预设设置为 CUSTOM 并且位置模式为 PIXEL 时生效",
+                "正值向右偏移，负值向左偏移",
+                "如果启用中心对齐，原点是屏幕中心",
+                "如果禁用中心对齐，原点是左上角"
+        ).defineInRange("pixel_x_offset", 0, -1000, 1000);
+
+        PIXEL_Y_OFFSET = BUILDER.comment(
+                "Y方向像素偏移",
+                "仅在位置预设设置为 CUSTOM 并且位置模式为 PIXEL 时生效",
+                "正值向下偏移，负值向上偏移",
+                "如果启用中心对齐，原点是屏幕中心",
+                "如果禁用中心对齐，原点是左上角",
+                "示例: -30 - 向上移动30像素"
+        ).defineInRange("pixel_y_offset", -50, -1000, 1000);
+
+        CENTER_ALIGNED = BUILDER.comment(
+                "是否使用中心对齐",
+                "仅在位置预设设置为 CUSTOM 并且位置模式为 PIXEL 时生效",
+                "true: 以屏幕中心为原点 (0,0)",
+                "false: 以屏幕左上角为原点 (默认)",
+                "建议在需要精确居中定位时启用"
+        ).define("center_aligned", false);
 
         MAX_WIDTH = BUILDER.comment(
                 "字幕最大宽度（像素）(0 = 不换行)",
@@ -121,7 +164,7 @@ public class ConfigHandler {
                 "字体高度（像素）(影响文字大小)",
                 "默认值为12像素，这是游戏原生字幕大小",
                 "值在8到64像素之间"
-        ).defineInRange("font_height", 12, 8, 64);
+        ).defineInRange("font_height", 9, 8, 64);
 
         BACKGROUND_OPACITY = BUILDER.comment(
                 "背景不透明度 (0.0 = 完全透明, 1.0 = 完全不透明)",
@@ -146,7 +189,8 @@ public class ConfigHandler {
                 "整体缩放因子",
                 "影响字幕位置和大小的整体比例",
                 "值小于1.0会缩小整个字幕，大于1.0会放大",
-                "默认值1.0（不缩放）"
+                "默认值1.0（不缩放）",
+                "注意: 此选项不影响像素位置模式"
         ).defineInRange("scale", 1.0, 0.5, 3.0);
 
         ENABLE_TEXT_SHADOW = BUILDER.comment(
