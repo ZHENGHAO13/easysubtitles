@@ -2,8 +2,12 @@ package com.zhenghao123.easysubtitles;
 
 import com.zhenghao123.easysubtitles.config.ConfigHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -12,6 +16,9 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @OnlyIn(Dist.CLIENT)
 public class SubtitleRenderer {
@@ -24,6 +31,11 @@ public class SubtitleRenderer {
     // 暂停状态管理
     private static boolean isPaused = false;
     private static long remainingTimeOnPause = 0;
+
+    // 多行字幕处理
+    private static final List<FormattedCharSequence> subtitleLines = new ArrayList<>();
+    private static double lastUpdateTime = 0;
+    private static String lastText = "";
 
     public SubtitleRenderer() {
         LOGGER.info("字幕渲染器初始化");
@@ -40,6 +52,9 @@ public class SubtitleRenderer {
             currentSubtitle = text;
             displayUntil = System.currentTimeMillis() + duration;
             isPaused = false; // 重置暂停状态
+
+            // 清除旧的行
+            subtitleLines.clear();
         });
     }
 
@@ -47,6 +62,7 @@ public class SubtitleRenderer {
         currentSubtitle = "";
         displayUntil = 0;
         isPaused = false;
+        subtitleLines.clear();
         LOGGER.debug("清除当前字幕");
     }
 
@@ -79,7 +95,7 @@ public class SubtitleRenderer {
         }
     }
 
-    private static void loadBackgroundTexture() {
+    public static void loadBackgroundTexture() {
         try {
             String path = ConfigHandler.BG_IMAGE_PATH.get();
             backgroundTexture = new ResourceLocation(path);
@@ -114,52 +130,133 @@ public class SubtitleRenderer {
             return;
         }
 
+        Minecraft minecraft = Minecraft.getInstance();
+        Font font = minecraft.font;
         GuiGraphics gui = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int screenHeight = event.getWindow().getGuiScaledHeight();
-        int textWidth = Minecraft.getInstance().font.width(currentSubtitle);
-        int x = (screenWidth - textWidth) / 2;
-        int y = screenHeight - 70; // 比聊天框稍高
 
-        renderBackground(gui, x, y, textWidth);
+        // 更新字幕行（根据配置）
+        updateSubtitleLines(font);
 
-        gui.drawString(
-                Minecraft.getInstance().font,
-                currentSubtitle, x, y, 0xFFFFFF, true
+        // 计算字幕位置（根据配置）
+        int[] position = calculatePosition(screenWidth, screenHeight, font);
+        int x = position[0];
+        int y = position[1];
+
+        // 渲染背景
+        renderBackground(gui, screenWidth, screenHeight, font, x, y);
+
+        // 渲染字幕文本
+        renderText(gui, font, x, y);
+    }
+
+    private static void updateSubtitleLines(Font font) {
+        // 如果字幕文本没有改变，不需要更新
+        if (currentSubtitle.equals(lastText)) {
+            return;
+        }
+
+        // 清除旧行
+        subtitleLines.clear();
+
+        // 根据配置的最大宽度进行文本分割
+        int maxWidth = ConfigHandler.MAX_WIDTH.get();
+        Component formattedText = Component.literal(currentSubtitle);
+
+        // 直接使用 font.split() 返回的 FormattedCharSequence 列表
+        subtitleLines.addAll(font.split(formattedText, maxWidth));
+
+        lastText = currentSubtitle;
+    }
+
+    private static int[] calculatePosition(int screenWidth, int screenHeight, Font font) {
+        // 使用配置的位置预设
+        ConfigHandler.PositionPreset position = ConfigHandler.POSITION_PRESET.get();
+
+        // 计算字幕总高度（包括行间距）
+        int totalHeight = font.lineHeight * subtitleLines.size() + (subtitleLines.size() - 1) * 2;
+        int maxLineWidth = getMaxLineWidth(font);
+
+        int xPos = 0;
+        int yPos = 0;
+
+        // 默认行为（底部居中）
+        if (position == ConfigHandler.PositionPreset.BOTTOM_CENTER) {
+            // 保留原始位置计算逻辑
+            xPos = (screenWidth - maxLineWidth) / 2;
+            yPos = screenHeight - totalHeight - 50;
+        }
+        // 其他预设位置
+        else {
+            // 根据配置计算位置...
+        }
+
+        // 应用整体缩放
+        double scale = ConfigHandler.SCALE.get();
+        xPos = (int) (xPos * scale);
+        yPos = (int) (yPos * scale);
+
+        return new int[]{xPos, yPos};
+    }
+
+    private static int getMaxLineWidth(Font font) {
+        int maxWidth = 0;
+        for (FormattedCharSequence line : subtitleLines) {
+            int lineWidth = font.width(line);
+            if (lineWidth > maxWidth) {
+                maxWidth = lineWidth;
+            }
+        }
+        return maxWidth;
+    }
+
+    private static void renderBackground(GuiGraphics gui, int screenWidth, int screenHeight, Font font, int x, int y) {
+        // 如果不显示背景，直接返回
+        if (!ConfigHandler.SHOW_BACKGROUND.get()) {
+            return;
+        }
+
+        // 如果没有行，不需要渲染背景
+        if (subtitleLines.isEmpty()) {
+            return;
+        }
+
+        int maxWidth = getMaxLineWidth(font);
+        int totalHeight = font.lineHeight * subtitleLines.size() + (subtitleLines.size() - 1) * 2;
+
+        // 保留原始纯色背景渲染逻辑
+        int padding = 5;
+        int alpha = 128; // 0x80 = 50% 不透明度
+
+        gui.fill(
+                x - padding,
+                y - padding,
+                x + maxWidth + padding,
+                y + totalHeight + padding,
+                (alpha << 24) | 0x000000
         );
     }
 
-    private void renderBackground(GuiGraphics gui, int x, int y, int textWidth) {
-        int padding = 5;
-        int bgHeight = Minecraft.getInstance().font.lineHeight + padding * 2;
+    private static void renderText(GuiGraphics gui, Font font, int x, int y) {
+        // 保留原始文字渲染逻辑
+        int textColor = 0xFFFFFF; // 白色
+        boolean shadow = true; // 启用阴影
+        int lineHeight = font.lineHeight + 2;
 
-        if (ConfigHandler.USE_IMAGE_BG.get()) {
-            if (!textureLoaded) {
-                loadBackgroundTexture();
-                textureLoaded = true;
-            }
-            if (backgroundTexture != null) {
-                int scaledWidth = (int) ((textWidth + padding * 2) * ConfigHandler.BG_SCALE.get());
-                int scaledHeight = (int) (bgHeight * ConfigHandler.BG_SCALE.get());
-                int offsetX = x - padding - (scaledWidth - textWidth - padding * 2) / 2;
-                int offsetY = y - padding - (scaledHeight - bgHeight) / 2;
+        for (int i = 0; i < subtitleLines.size(); i++) {
+            FormattedCharSequence line = subtitleLines.get(i);
+            int lineY = y + i * lineHeight;
 
-                gui.blit(
-                        backgroundTexture,
-                        offsetX, offsetY,
-                        0, 0,
-                        scaledWidth, scaledHeight,
-                        scaledWidth, scaledHeight
-                );
-                return;
-            }
+            gui.drawString(
+                    font,
+                    line,
+                    x,
+                    lineY,
+                    textColor,
+                    shadow
+            );
         }
-
-        gui.fill(
-                x - padding, y - padding,
-                x + textWidth + padding, y + bgHeight,
-                0x80000000
-        );
     }
 
     // 获取当前字幕文本

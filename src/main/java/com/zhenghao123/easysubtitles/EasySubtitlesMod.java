@@ -1,7 +1,11 @@
 package com.zhenghao123.easysubtitles;
 
 import com.zhenghao123.easysubtitles.config.ConfigHandler;
+import com.zhenghao123.easysubtitles.config.ConfigMenuIntegration;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -10,6 +14,7 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -45,16 +50,21 @@ public class EasySubtitlesMod {
                 "easysubtitles-client.toml"
         );
 
-        // 修正：使用正确的 getModEventBus() 方法
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         modEventBus.addListener(this::onCommonSetup);
-        if (FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
+
+            // 使用lambda表达式修复类型匹配问题
+            modEventBus.addListener((FMLClientSetupEvent event) -> {
+                ConfigMenuIntegration.registerConfigMenu();
+            });
+
+            modEventBus.addListener(ConfigMenuIntegration::onConfigReload);
         }
 
         MinecraftForge.EVENT_BUS.register(this);
-
         LOGGER.info("主类初始化完成");
     }
 
@@ -99,6 +109,21 @@ public class EasySubtitlesMod {
         LOGGER.info("已注册命令监听器: {}", commandPlayListener != null);
         LOGGER.info("已注册字幕渲染器: {}", subtitleRenderer != null);
         LOGGER.info("客户端组件初始化完成");
+    }
+
+    // 应用新配置
+    public static void applyNewConfig() {
+        LOGGER.info("Applying new subtitle configuration");
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            Minecraft.getInstance().tell(() -> {
+                if (Minecraft.getInstance().player != null) {
+                    Minecraft.getInstance().player.displayClientMessage(
+                            Component.literal("EasySubtitles configuration reloaded!"),
+                            true
+                    );
+                }
+            });
+        }
     }
 
     @SubscribeEvent
