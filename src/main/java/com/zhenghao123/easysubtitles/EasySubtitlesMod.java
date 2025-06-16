@@ -37,16 +37,15 @@ public class EasySubtitlesMod {
     public EasySubtitlesMod() {
         LOGGER.info("EasySubtitles 模组正在初始化...");
 
-        // 在模组启动时确保字幕目录存在
         ensureSubtitleDirectoryExists();
 
-        // 注册配置
         ModLoadingContext.get().registerConfig(
                 ModConfig.Type.CLIENT,
                 ConfigHandler.SPEC,
                 "easysubtitles-client.toml"
         );
 
+        // 修正：使用正确的 getModEventBus() 方法
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         modEventBus.addListener(this::onCommonSetup);
@@ -59,7 +58,6 @@ public class EasySubtitlesMod {
         LOGGER.info("主类初始化完成");
     }
 
-    // 新建方法，直接在EasySubtitlesMod类中处理目录创建
     private void ensureSubtitleDirectoryExists() {
         File subDir = FMLPaths.CONFIGDIR.get().resolve("easysubtitles").toFile();
         if (!subDir.exists()) {
@@ -79,6 +77,14 @@ public class EasySubtitlesMod {
                 PlaySubtitlePacket::encode,
                 PlaySubtitlePacket::new,
                 PlaySubtitlePacket::handle);
+
+        // 新增停止字幕包注册
+        NETWORK_CHANNEL.registerMessage(1, StopSubtitlePacket.class,
+                StopSubtitlePacket::encode,
+                StopSubtitlePacket::new,
+                StopSubtitlePacket::handle);
+
+        LOGGER.info("网络通道已注册，支持 {} 种消息类型", 2);
     }
 
     private void onClientSetup(FMLClientSetupEvent event) {

@@ -3,6 +3,7 @@ package com.zhenghao123.easysubtitles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -25,16 +26,13 @@ public class SubtitlePlayer {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    // 暂停状态管理
     private static boolean isPaused = false;
 
-    // 保证跨线程安全
     private static final AtomicLong totalPauseDuration = new AtomicLong(0);
     private static final AtomicLong lastPauseStart = new AtomicLong(0);
     private static final AtomicLong playbackStartTime = new AtomicLong(0);
     private static final AtomicLong displayUntil = new AtomicLong(0);
 
-    // 记录第一句字幕状态
     private static boolean firstSubtitleScheduled = false;
 
     public static void play(File srtFile) {
@@ -42,7 +40,6 @@ public class SubtitlePlayer {
 
         LOGGER.info("播放字幕文件: {}", srtFile.getName());
 
-        // 重置所有状态
         resetState();
 
         currentFile = srtFile;
@@ -63,7 +60,6 @@ public class SubtitlePlayer {
             firstSubtitleScheduled = false;
             displayUntil.set(0);
 
-            // 立即显示第一句字幕（如果开始时间为0）
             scheduleFirstSubtitleIfNeeded();
 
             scheduleRemainingSubtitles();
@@ -80,10 +76,9 @@ public class SubtitlePlayer {
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
         displayUntil.set(0);
-        stop(false); // 静默停止
+        stop(false);
     }
 
-    // 停止字幕（带日志控制）
     public static void stop(boolean log) {
         if (log) {
             LOGGER.info("停止当前字幕播放");
@@ -106,14 +101,30 @@ public class SubtitlePlayer {
         isPaused = false;
         firstSubtitleScheduled = false;
 
-        // 重置所有计时器
         playbackStartTime.set(0);
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
         displayUntil.set(0);
     }
 
-    // 默认停止方法（记录日志）
+    public static void stop(ResourceLocation soundId) {
+        if (soundId == null) {
+            stop(true);
+            return;
+        }
+
+        String fileNamePrefix = soundId.getPath().replace("subtitles.sound.", "");
+
+        if (currentFile != null && currentFile.getName().startsWith(fileNamePrefix)) {
+            LOGGER.info("停止特定字幕: {}", fileNamePrefix);
+            stop(true);
+        } else {
+            LOGGER.debug("当前字幕与停止请求不匹配: {} vs {}",
+                    currentFile != null ? currentFile.getName() : "null",
+                    fileNamePrefix);
+        }
+    }
+
     public static void stop() {
         stop(true);
     }
@@ -167,7 +178,6 @@ public class SubtitlePlayer {
                 long remainingTime = sub.getEndMs() - adjustedTime;
                 LOGGER.debug("显示当前活跃字幕: '{}' 剩余: {}ms", sub.getText(), remainingTime);
                 SubtitleRenderer.showSubtitle(sub.getText(), remainingTime);
-                // 更新显示结束时间
                 displayUntil.set(System.currentTimeMillis() + remainingTime);
                 break;
             }
@@ -242,7 +252,6 @@ public class SubtitlePlayer {
                     LOGGER.debug("显示字幕: '{}' 持续: {}ms", sub.getText(), duration);
                     Minecraft.getInstance().execute(() -> {
                         SubtitleRenderer.showSubtitle(sub.getText(), duration);
-                        // 更新显示结束时间
                         displayUntil.set(System.currentTimeMillis() + duration);
                     });
                 }
@@ -262,16 +271,14 @@ public class SubtitlePlayer {
             return;
         }
 
-        // 检查字幕是否应该超时消失
         if (!isPaused && displayUntil.get() > 0 && System.currentTimeMillis() > displayUntil.get()) {
             LOGGER.debug("字幕超时，清除显示");
             SubtitleRenderer.clearSubtitle();
-            displayUntil.set(0); // 重置显示结束时间
+            displayUntil.set(0);
         }
 
         boolean isPauseScreen = Minecraft.getInstance().screen instanceof PauseScreen;
 
-        // 只在单人游戏时暂停字幕，在多人游戏（连接到服务器）时不暂停
         if (Minecraft.getInstance().isSingleplayer()) {
             if (isPauseScreen && isPlaying()) {
                 if (!isPaused) {
@@ -293,7 +300,7 @@ public class SubtitlePlayer {
 
     public static void resetOnWorldExit() {
         LOGGER.info("完全重置字幕播放器");
-        stop(false); // 静默停止
+        stop(false);
         playbackStartTime.set(0);
         totalPauseDuration.set(0);
         lastPauseStart.set(0);
@@ -301,7 +308,6 @@ public class SubtitlePlayer {
         firstSubtitleScheduled = false;
     }
 
-    // 获取字幕显示结束时间
     public static long getDisplayUntil() {
         return displayUntil.get();
     }

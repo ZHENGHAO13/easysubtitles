@@ -6,6 +6,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.CommandEvent;
@@ -36,17 +37,14 @@ public class CommandPlayListener {
         }
     }
 
-    // 检查是否为/playsound命令
     private boolean isPlaySoundCommand(String fullCommand) {
         return fullCommand.startsWith("/playsound ") || fullCommand.startsWith("playsound ");
     }
 
-    // 检查是否为/stopsound命令
     private boolean isStopSoundCommand(String fullCommand) {
         return fullCommand.startsWith("/stopsound ") || fullCommand.startsWith("stopsound ");
     }
 
-    // 处理/playsound命令（原有逻辑）
     private void handlePlaySoundCommand(CommandEvent event, String fullCommand) {
         try {
             if (fullCommand.startsWith("/")) {
@@ -96,7 +94,6 @@ public class CommandPlayListener {
                 return;
             }
 
-            // 同时播放音频和字幕
             playSoundAndSubtitle(soundId, soundName);
 
         } catch (Exception e) {
@@ -104,10 +101,9 @@ public class CommandPlayListener {
         }
     }
 
-    // 处理/stopsound命令
     private void handleStopSoundCommand(String fullCommand) {
         try {
-            LOGGER.info("检测到/stopsound命令，解析并尝试停止字幕");
+            LOGGER.info("检测到/stopsound命令，解析并停止声音与字幕");
 
             if (fullCommand.startsWith("/")) {
                 fullCommand = fullCommand.substring(1);
@@ -115,8 +111,17 @@ public class CommandPlayListener {
 
             String[] tokens = fullCommand.split("\\s+");
 
-            // 获取目标玩家参数（如果有的话）
             String targetPlayer = tokens.length >= 2 ? tokens[1] : "";
+            SoundSource source = SoundSource.MASTER;
+            if (tokens.length >= 3) {
+                try {
+                    source = SoundSource.valueOf(tokens[2].toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("无效的声音来源: {}", tokens[2]);
+                }
+            }
+            String soundIdStr = tokens.length >= 4 ? tokens[3] : null;
+            ResourceLocation soundLocation = soundIdStr != null ? ResourceLocation.tryParse(soundIdStr) : null;
 
             LocalPlayer player = Minecraft.getInstance().player;
             if (player == null) {
@@ -124,12 +129,16 @@ public class CommandPlayListener {
                 return;
             }
 
-            // 检查是否针对当前玩家
             if (isForCurrentPlayer(targetPlayer, player.getName().getString())) {
                 LOGGER.info("停止声音命令针对当前玩家，停止所有字幕播放");
 
-                // 静默停止字幕，不记录过多的停止日志
-                SubtitlePlayer.stop(false);
+                if (soundLocation != null) {
+                    Minecraft.getInstance().getSoundManager().stop(soundLocation, source);
+                    SubtitlePlayer.stop(soundLocation);
+                } else {
+                    Minecraft.getInstance().getSoundManager().stop(null, source);
+                    SubtitlePlayer.stop(true);
+                }
             } else {
                 LOGGER.debug("停止声音命令不针对当前玩家，跳过处理");
             }
@@ -149,7 +158,6 @@ public class CommandPlayListener {
             return true;
         }
 
-        // 空目标或默认可执行时视为当前玩家
         if (target == null || target.isEmpty() ||
                 target.equals("@s") || target.equals("@p") || target.equals("@a")) {
             return true;
@@ -168,14 +176,12 @@ public class CommandPlayListener {
     public static void playSoundAndSubtitle(ResourceLocation soundId, String soundName) {
         LOGGER.info("在客户端播放声音和字幕: {}", soundId);
 
-        // 清除任何可能的过期字幕
         if (SubtitlePlayer.getDisplayUntil() > 0 && System.currentTimeMillis() > SubtitlePlayer.getDisplayUntil()) {
             LOGGER.info("清除过期字幕");
-            SubtitlePlayer.stop(false); // 静默停止
+            SubtitlePlayer.stop(false);
             SubtitleRenderer.clearSubtitle();
         }
 
-        // 播放音频
         try {
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundId);
             if (soundEvent == null) {
@@ -183,11 +189,10 @@ public class CommandPlayListener {
                 return;
             }
 
-            // 创建声音实例并播放
             SimpleSoundInstance soundInstance = SimpleSoundInstance.forUI(
                     soundEvent,
-                    1.0f, // 音量
-                    1.0f  // 音调
+                    1.0f,
+                    1.0f
             );
 
             Minecraft.getInstance().getSoundManager().play(soundInstance);
@@ -195,7 +200,6 @@ public class CommandPlayListener {
             LOGGER.error("播放声音失败", e);
         }
 
-        // 播放字幕
         playSubtitleFile(soundName);
     }
 }
