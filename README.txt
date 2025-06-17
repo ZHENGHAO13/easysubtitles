@@ -41,3 +41,47 @@ EasySubtitles 是一个为 Minecraft 1.20.1 设计的模组，它添加了一个
   2
   00:00:02,500 --> 00:00:04,000
   请享受自动字幕功能！
+
+  = EasySubtitles - Minecraft Subtitles Mod =
+  Version: 1.0.0
+  Author: Zhenghao123
+  Available for: Minecraft 1.20.1, Forge 47.4.0
+  License: MIT
+
+  == Introduction ==
+  EasySubtitles is a mod designed for Minecraft 1.20.1 that adds a simple subtitle system:
+  1. Subtitle files in SRT format can be played manually
+  2. Automatically detect audio commands in a specific format and play the corresponding subtitles
+  3. Highly customizable subtitle rendering effects
+
+  == FEATURES ==
+  ● Automatic subtitle function
+  - Monitor format: /playsound easysubtitles:subtitles.sound. <字幕ID> ...
+  - Corresponding subtitle file: config/easysubtitles/<字幕ID>.srt
+
+  ● Manual subtitle playback
+  - Command: /easysub <字幕ID>
+  - Stop playing: /easysub stop
+  - Debug information: /easysub debug
+
+  ● Configurable options
+  - Automatic subtitle switch
+  - Subtitle background settings
+  - Font color and size
+
+  == Installation ==
+  1. Make sure you have Minecraft Forge 47.4.0 or later installed
+  2. Put easysubtitles-1.0.0.jar into the mods folder
+  3. Launch the game
+
+  == Tutorial ==
+  1. Create a subtitle file
+  Create an SRT subtitle file in the .minecraft/config/easysubtitles/ directory
+  Example (ce1.srt):
+  1
+  00:00:00,000 --> 00:00:02,000
+  Welcome to the EasySubtitles mod
+
+  2
+  00:00:02,500 --> 00:00:04,000
+  Please enjoy the automatic subtitle feature!
