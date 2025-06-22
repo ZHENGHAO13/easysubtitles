@@ -56,7 +56,6 @@ public class EasySubtitlesMod {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
 
-            // 使用lambda表达式修复类型匹配问题
             modEventBus.addListener((FMLClientSetupEvent event) -> {
                 ConfigMenuIntegration.registerConfigMenu();
             });
