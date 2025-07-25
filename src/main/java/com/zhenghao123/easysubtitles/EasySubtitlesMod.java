@@ -15,7 +15,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -56,7 +55,6 @@ public class EasySubtitlesMod {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
 
-            // 使用lambda表达式修复类型匹配问题
             modEventBus.addListener((FMLClientSetupEvent event) -> {
                 ConfigMenuIntegration.registerConfigMenu();
             });
@@ -65,6 +63,7 @@ public class EasySubtitlesMod {
         }
 
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(MusicController.class); // 注册音乐控制器
         LOGGER.info("主类初始化完成");
     }
 
@@ -94,7 +93,13 @@ public class EasySubtitlesMod {
                 StopSubtitlePacket::new,
                 StopSubtitlePacket::handle);
 
-        LOGGER.info("网络通道已注册，支持 {} 种消息类型", 2);
+        // 新增音乐控制包注册
+        NETWORK_CHANNEL.registerMessage(2, MusicControlPacket.class,
+                MusicControlPacket::encode,
+                MusicControlPacket::new,
+                MusicControlPacket::handle);
+
+        LOGGER.info("网络通道已注册，支持 {} 种消息类型", 3);
     }
 
     private void onClientSetup(FMLClientSetupEvent event) {
@@ -130,6 +135,7 @@ public class EasySubtitlesMod {
     public void onRegisterCommands(RegisterCommandsEvent event) {
         LOGGER.info("正在注册EasySubtitles命令处理器...");
         CommandHandler.register(event.getDispatcher());
+        MusicControlCommand.register(event.getDispatcher()); // 注册新命令
         LOGGER.info("命令处理器注册完成");
     }
 }

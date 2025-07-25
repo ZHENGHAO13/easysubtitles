@@ -2,11 +2,14 @@ package com.zhenghao123.easysubtitles;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -48,26 +51,27 @@ public class SubtitlePlayer {
             List<SRTParser.Subtitle> subs = SRTParser.parse(srtFile);
             if (subs == null || subs.isEmpty()) {
                 LOGGER.warn("字幕文件无有效内容: {}", srtFile.getName());
-                Minecraft.getInstance().gui.getChat().addMessage(
-                        Component.literal("字幕文件无有效内容或格式错误: " + srtFile.getName())
-                );
+                // 移除发送给玩家的提示
+                // Minecraft.getInstance().gui.getChat().addMessage(
+                //     Component.literal("字幕文件无有效内容或格式错误: " + srtFile.getName())
+                // );
                 return;
             }
 
-            LOGGER.info("解析到 {} 个字极", subs.size());
+            LOGGER.info("解析到 {} 个字", subs.size());
             currentSubtitles = subs;
             playbackStartTime.set(System.currentTimeMillis());
             firstSubtitleScheduled = false;
             displayUntil.set(0);
 
             scheduleFirstSubtitleIfNeeded();
-
             scheduleRemainingSubtitles();
         } catch (Exception e) {
             LOGGER.error("字幕加载失败: {} - {}", srtFile.getName(), e.getMessage(), e);
-            Minecraft.getInstance().gui.getChat().addMessage(
-                    Component.literal("字幕加载失败: " + e.getMessage() + "\n文件: " + srtFile.getName())
-            );
+            // 移除发送给玩家的提示
+            // Minecraft.getInstance().gui.getChat().addMessage(
+            //     Component.literal("字幕加载失败: " + e.getMessage() + "\n文件: " + srtFile.getName())
+            // );
         }
     }
 
@@ -137,16 +141,6 @@ public class SubtitlePlayer {
         return currentSubtitles != null && !currentSubtitles.isEmpty();
     }
 
-    // 已移除暂停功能
-    /*
-    public static void pausePlayback() {
-        // ... 已移除
-    }
-
-    public static void resumePlayback() {
-        // ... 已移除
-    }
-    */
 
     private static void showCurrentActiveSubtitle() {
         if (currentSubtitles == null || currentSubtitles.isEmpty()) return;
@@ -279,5 +273,16 @@ public class SubtitlePlayer {
 
     public static long getDisplayUntil() {
         return displayUntil.get();
+    }
+
+    @SubscribeEvent
+    public static void onPlaySound(PlaySoundEvent event) {
+        SoundInstance sound = event.getSound();
+        if (sound == null) return;
+
+        // 如果声音属于音乐类别，并且当前处于静音期，则取消播放
+        if (sound.getSource() == SoundSource.MUSIC && System.currentTimeMillis() < MusicController.getMuteUntil()) {
+            event.setCanceled(true);
+        }
     }
 }

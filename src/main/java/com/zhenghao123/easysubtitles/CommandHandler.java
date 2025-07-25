@@ -97,9 +97,8 @@ public class CommandHandler {
 
         if (!file.exists()) {
             LOGGER.warn("文件不存在: {}", file.getAbsolutePath());
-            source.sendFailure(
-                    Component.literal("文件不存在: " + file.getAbsolutePath())
-            );
+            // 移除发送给玩家的提示
+            // source.sendFailure(Component.literal("文件不存在: " + file.getAbsolutePath()));
             return;
         }
 
