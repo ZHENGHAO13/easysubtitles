@@ -63,7 +63,6 @@ public class EasySubtitlesMod {
         }
 
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(MusicController.class); // 注册音乐控制器
         LOGGER.info("主类初始化完成");
     }
 
@@ -109,6 +108,7 @@ public class EasySubtitlesMod {
         SubtitleRenderer subtitleRenderer = new SubtitleRenderer();
 
         MinecraftForge.EVENT_BUS.register(commandPlayListener);
+        MinecraftForge.EVENT_BUS.register(ClientMusicController.class);
         MinecraftForge.EVENT_BUS.register(subtitleRenderer);
 
         LOGGER.info("已注册命令监听器: {}", commandPlayListener != null);
