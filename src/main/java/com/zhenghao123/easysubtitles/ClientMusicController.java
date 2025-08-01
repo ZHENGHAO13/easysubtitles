@@ -27,8 +27,10 @@ public class ClientMusicController {
         SoundInstance sound = event.getSound();
         if (sound == null) return;
 
+        // 如果声音属于音乐类别，并且当前处于静音期，则阻止播放
         if (sound.getSource() == SoundSource.MUSIC && System.currentTimeMillis() < muteUntil) {
-            event.setCanceled(true);
+            // 不再尝试取消事件，而是阻止声音管理器播放此声音
+            Minecraft.getInstance().getSoundManager().stop(sound);
             LOGGER.debug("已阻止背景音乐播放: {}", sound.getLocation());
         }
     }
@@ -36,11 +38,13 @@ public class ClientMusicController {
     public static void scheduleMute(long durationMs) {
         muteUntil = System.currentTimeMillis() + durationMs;
 
+        // 安排一个任务在静音结束后重置状态
         scheduler.schedule(() -> {
             muteUntil = 0;
             LOGGER.info("背景音乐静音结束");
         }, durationMs, TimeUnit.MILLISECONDS);
 
+        // 立即停止当前正在播放的背景音乐
         Minecraft.getInstance().getSoundManager().stop(null, SoundSource.MUSIC);
         LOGGER.info("背景音乐已静音 {} 毫秒", durationMs);
     }
