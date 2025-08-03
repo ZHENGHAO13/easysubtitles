@@ -5,7 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.minecraftforge.network.PacketDistributor;
 
 public class MusicControlCommand {
 
@@ -15,20 +15,31 @@ public class MusicControlCommand {
                 .then(Commands.argument("duration", IntegerArgumentType.integer(1, 3600))
                         .executes(ctx -> {
                             int duration = IntegerArgumentType.getInteger(ctx, "duration");
-                            executeStopMusic(duration);
-                            return 1;
+                            return executeStopMusic(ctx.getSource(), duration);
                         })
                 )
-                .executes(ctx -> 0)
+                .executes(ctx -> 0) // 无参数时不做任何操作
         );
     }
 
-    private static void executeStopMusic(int duration) {
-        for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
-            EasySubtitlesMod.NETWORK_CHANNEL.send(
-                    net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                    new MusicControlPacket(duration * 1000L)
-            );
+    private static int executeStopMusic(CommandSourceStack source, int duration) {
+        // 只向触发命令的玩家发送控制包
+        if (source.getEntity() instanceof ServerPlayer player) {
+            sendMusicControlPacket(player, duration * 1000L);
+            return 1;
+        } else {
+            // 控制台执行时发送给所有玩家
+            for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
+                sendMusicControlPacket(player, duration * 1000L);
+            }
+            return 1;
         }
+    }
+
+    private static void sendMusicControlPacket(ServerPlayer player, long durationMs) {
+        EasySubtitlesMod.NETWORK_CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> player),
+                new MusicControlPacket(durationMs)
+        );
     }
 }

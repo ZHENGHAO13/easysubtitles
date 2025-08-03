@@ -21,7 +21,7 @@ public class MusicControlPacket {
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
-            // 仅在客户端处理
+            // 只在客户端处理
             if (ctx.get().getDirection().getReceptionSide().isClient()) {
                 ClientMusicController.scheduleMute(muteDurationMs);
             }
