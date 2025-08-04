@@ -104,11 +104,16 @@ public class CommandHandler {
 
         // 如果是服务器，则发送数据包给客户端
         if (!source.getLevel().isClientSide) {
-            for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
+            // 获取触发命令的玩家（命令执行者）
+            if (source.getEntity() instanceof ServerPlayer player) {
+                // 只向触发命令的玩家发送数据包
                 EasySubtitlesMod.NETWORK_CHANNEL.send(
                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
                         new PlaySubtitlePacket(fileName)
                 );
+            } else {
+                // 如果不是玩家（比如控制台），则可以选择不发送或发送给所有玩家（根据需求）
+                LOGGER.warn("命令执行者不是玩家，无法播放字幕");
             }
         } else {
             // 客户端直接播放
