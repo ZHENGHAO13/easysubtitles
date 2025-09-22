@@ -124,11 +124,10 @@ public class ServerCommandPlayListener {
 
             for (ServerPlayer player : targetPlayers) {
                 if (LOG_SOUND_COMMANDS.getAsBoolean()) {
-                    LOGGER.info("播放声音和发送字幕给玩家: {}", player.getScoreboardName());
+                    LOGGER.info("发送字幕给玩家: {}", player.getScoreboardName());
                 }
 
-                playServerSound(soundId, player);
-
+                // 只发送网络包，不在服务器端播放声音
                 EasySubtitlesMod.NETWORK_CHANNEL.send(
                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
                         new PlaySubtitlePacket(soundName)
@@ -233,32 +232,4 @@ public class ServerCommandPlayListener {
         }
     }
 
-    private static void playServerSound(ResourceLocation soundId, ServerPlayer player) {
-        try {
-            SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundId);
-            if (soundEvent == null) {
-                LOGGER.error("无法创建声音事件: {}", soundId);
-                return;
-            }
-
-            Level playerLevel = player.level();
-
-            if (playerLevel == null) {
-                LOGGER.error("玩家世界级别为空: {}", player.getName().getString());
-                return;
-            }
-
-            // 在玩家位置播放声音，只发送给该玩家
-            playerLevel.playSound(
-                    player,
-                    player.getX(), player.getY(), player.getZ(),
-                    soundEvent,
-                    SoundSource.MASTER,
-                    1.0f,
-                    1.0f
-            );
-        } catch (Exception e) {
-            LOGGER.error("在服务器播放声音失败", e);
-        }
-    }
 }
