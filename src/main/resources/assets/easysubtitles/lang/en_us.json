@@ -1,0 +1,48 @@
+{
+  "easysubtitles.config.title": "EasySubtitles Configuration",
+
+  "easysubtitles.config.category.basic": "Basic Settings",
+  "easysubtitles.config.category.display": "Display Settings",
+
+  "easysubtitles.config.auto_subtitles": "Auto Subtitles",
+  "easysubtitles.config.close_on_esc": "Close on ESC",
+  "easysubtitles.config.use_image_bg": "Use Image BG",
+  "easysubtitles.config.show_bg": "Show Background",
+  "easysubtitles.config.bg_image_path": "BG Image Path",
+  "easysubtitles.config.bg_scale": "BG Scale",
+  "easysubtitles.config.text_shadow": "Text Shadow",
+
+  "easysubtitles.config.position_preset": "Position Preset",
+  "easysubtitles.config.position_preset.top_left": "Top Left",
+  "easysubtitles.config.position_preset.top_center": "Top Center",
+  "easysubtitles.config.position_preset.top_right": "Top Right",
+  "easysubtitles.config.position_preset.center_left": "Center Left",
+  "easysubtitles.config.position_preset.center": "Center",
+  "easysubtitles.config.position_preset.center_right": "Center Right",
+  "easysubtitles.config.position_preset.bottom_left": "Bottom Left",
+  "easysubtitles.config.position_preset.bottom_center": "Bottom Center",
+  "easysubtitles.config.position_preset.bottom_right": "Bottom Right",
+  "easysubtitles.config.position_preset.custom": "Custom",
+
+  "easysubtitles.config.x_offset": "X Offset",
+  "easysubtitles.config.y_offset": "Y Offset",
+  "easysubtitles.config.max_width": "Max Width",
+  "easysubtitles.config.font_height": "Font Height",
+  "easysubtitles.config.bg_opacity": "BG Opacity",
+  "easysubtitles.config.scale": "Scale",
+  "easysubtitles.config.text_color": "Text Color",
+  "easysubtitles.config.update_rate": "Update Rate",
+
+  "easysubtitles.config.reset": "Reset to Defaults",
+  "easysubtitles.config.saved": "EasySubtitles configuration saved!",
+  "easysubtitles.config.reset_success": "Configuration reset to defaults!",
+  "easysubtitles.config.error.number_format": "Error: Invalid number format in one of the fields!",
+  "easysubtitles.config.error": "Error: %s",
+
+  "key.easysubtitles.stopsound": "stop sound",
+  "category.easysubtitles": "Easy Subtitles",
+
+  "easysubtitles.config.tips": "Changes require saving to take effect",
+  "easysubtitles.config.custom_position_tip": "Custom Position Settings: Use values between 0.0 and 1.0",
+  "easysubtitles.config.bg_image_tip": "Background Image Settings: Format as namespace:path/image.png"
+}

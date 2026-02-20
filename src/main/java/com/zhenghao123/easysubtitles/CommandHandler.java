@@ -2,6 +2,8 @@ package com.zhenghao123.easysubtitles;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.BoolArgumentType; // 新增导入
+import com.zhenghao123.easysubtitles.config.ConfigHandler; // 新增导入
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -18,7 +20,6 @@ import java.io.File;
 public class CommandHandler {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    // 修改为 public static 方法，以便从其他类访问
     public static void ensureSubtitleDirectoryExists() {
         File subDir = getSubDir();
         if (!subDir.exists()) {
@@ -36,7 +37,6 @@ public class CommandHandler {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // 确保目录存在
         ensureSubtitleDirectoryExists();
 
         LOGGER.info("注册/easysub命令");
@@ -60,9 +60,30 @@ public class CommandHandler {
                             return 1;
                         })
                 )
+                // 新增：配置修改指令
+                .then(Commands.literal("config")
+                        .requires(source -> source.hasPermission(2)) // 需要2级权限（作弊/OP）
+                        .then(Commands.literal("closeOnEsc")
+                                .then(Commands.argument("value", BoolArgumentType.bool())
+                                        .executes(ctx -> {
+                                            boolean val = BoolArgumentType.getBool(ctx, "value");
+                                            // 修改配置
+                                            ConfigHandler.CLOSE_ON_ESC.set(val);
+                                            ConfigHandler.SPEC.save(); // 保存到文件
+
+                                            // 发送反馈
+                                            String status = val ? "终止播放 (Stop)" : "暂停播放 (Pause)";
+                                            ctx.getSource().sendSuccess(
+                                                    () -> Component.literal("已设置ESC菜单行为: " + status),
+                                                    true
+                                            );
+                                            return 1;
+                                        })
+                                )
+                        )
+                )
                 .then(Commands.literal("debug")
                         .executes(ctx -> {
-                            // 创建临时final变量
                             final String currentFileStr;
                             final String playingStatusStr;
 
@@ -97,26 +118,19 @@ public class CommandHandler {
 
         if (!file.exists()) {
             LOGGER.warn("文件不存在: {}", file.getAbsolutePath());
-            // 移除发送给玩家的提示
-            // source.sendFailure(Component.literal("文件不存在: " + file.getAbsolutePath()));
             return;
         }
 
-        // 如果是服务器，则发送数据包给客户端
         if (!source.getLevel().isClientSide) {
-            // 获取触发命令的玩家（命令执行者）
             if (source.getEntity() instanceof ServerPlayer player) {
-                // 只向触发命令的玩家发送数据包
                 EasySubtitlesMod.NETWORK_CHANNEL.send(
                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
                         new PlaySubtitlePacket(fileName)
                 );
             } else {
-                // 如果不是玩家（比如控制台），则可以选择不发送或发送给所有玩家（根据需求）
                 LOGGER.warn("命令执行者不是玩家，无法播放字幕");
             }
         } else {
-            // 客户端直接播放
             CommandPlayListener.playSubtitleFile(fileName);
         }
 

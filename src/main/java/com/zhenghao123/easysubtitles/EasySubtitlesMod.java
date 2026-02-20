@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent; // 客户端特有
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -52,6 +53,8 @@ public class EasySubtitlesMod {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         modEventBus.addListener(this::onCommonSetup);
+
+        // 关键修复：将客户端专用事件包装在逻辑检查中，且不直接在匿名类中写客户端代码
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
 
@@ -60,6 +63,9 @@ public class EasySubtitlesMod {
             });
 
             modEventBus.addListener(ConfigMenuIntegration::onConfigReload);
+
+            // 安全注册快捷键事件：确保在服务端绝对不触发此逻辑
+            modEventBus.addListener(this::onRegisterKeyMappings);
         }
 
         MinecraftForge.EVENT_BUS.register(this);
@@ -86,13 +92,11 @@ public class EasySubtitlesMod {
                 PlaySubtitlePacket::new,
                 PlaySubtitlePacket::handle);
 
-        // 新增停止字幕包注册
         NETWORK_CHANNEL.registerMessage(1, StopSubtitlePacket.class,
                 StopSubtitlePacket::encode,
                 StopSubtitlePacket::new,
                 StopSubtitlePacket::handle);
 
-        // 新增音乐控制包注册
         NETWORK_CHANNEL.registerMessage(2, MusicControlPacket.class,
                 MusicControlPacket::encode,
                 MusicControlPacket::new,
@@ -116,6 +120,17 @@ public class EasySubtitlesMod {
         LOGGER.info("客户端组件初始化完成");
     }
 
+    /**
+     * 关键修复：添加 @SubscribeEvent 并确保这个方法只有在物理客户端环境才被加载
+     */
+    @SubscribeEvent
+    public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        // 二重保险，防止混淆环境下的类加载冲突
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            event.register(KeyInputHandler.STOP_SOUND_KEY);
+        }
+    }
+
     // 应用新配置
     public static void applyNewConfig() {
         LOGGER.info("Applying new subtitle configuration");
@@ -135,7 +150,7 @@ public class EasySubtitlesMod {
     public void onRegisterCommands(RegisterCommandsEvent event) {
         LOGGER.info("正在注册EasySubtitles命令处理器...");
         CommandHandler.register(event.getDispatcher());
-        MusicControlCommand.register(event.getDispatcher()); // 注册新命令
+        MusicControlCommand.register(event.getDispatcher());
         LOGGER.info("命令处理器注册完成");
     }
 }

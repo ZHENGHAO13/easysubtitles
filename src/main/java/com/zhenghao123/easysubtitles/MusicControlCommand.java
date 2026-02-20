@@ -12,34 +12,33 @@ public class MusicControlCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("stopmusic")
                 .requires(source -> source.hasPermission(2))
+                // 重点：不在此处添加 .executes，强制逻辑流向下一步参数输入
                 .then(Commands.argument("duration", IntegerArgumentType.integer(1, 3600))
                         .executes(ctx -> {
                             int duration = IntegerArgumentType.getInteger(ctx, "duration");
                             return executeStopMusic(ctx.getSource(), duration);
                         })
                 )
-                .executes(ctx -> 0) // 无参数时不做任何操作
         );
     }
 
     private static int executeStopMusic(CommandSourceStack source, int duration) {
-        // 只向触发命令的玩家发送控制包
+        // 将秒转换为毫秒发往客户端
+        long durationMs = duration * 1000L;
         if (source.getEntity() instanceof ServerPlayer player) {
-            sendMusicControlPacket(player, duration * 1000L);
-            return 1;
+            sendPacket(player, durationMs);
         } else {
-            // 控制台执行时发送给所有玩家
             for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-                sendMusicControlPacket(player, duration * 1000L);
+                sendPacket(player, durationMs);
             }
-            return 1;
         }
+        return 1;
     }
 
-    private static void sendMusicControlPacket(ServerPlayer player, long durationMs) {
+    private static void sendPacket(ServerPlayer player, long ms) {
         EasySubtitlesMod.NETWORK_CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> player),
-                new MusicControlPacket(durationMs)
+                new MusicControlPacket(ms)
         );
     }
 }

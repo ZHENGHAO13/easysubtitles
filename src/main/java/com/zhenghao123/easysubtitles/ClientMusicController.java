@@ -9,35 +9,35 @@ import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = EasySubtitlesMod.MODID, value = Dist.CLIENT)
 public class ClientMusicController {
-    private static final Logger LOGGER = LogManager.getLogger();
     private static long muteUntil = 0;
     private static boolean isMuted = false;
+    private static SoundInstance pausedMusic = null; // 记录被暂停的音乐实例
 
     @SubscribeEvent
-    public static void onPlaySound(PlaySoundEvent event) {
-        SoundInstance sound = event.getSound();
-        if (sound == null) return;
-
-        // 安全阻止音乐播放
-        if (sound.getSource() == SoundSource.MUSIC && isMusicMuted()) {
-            event.setSound(null); // 正确阻止音乐播放
-            LOGGER.debug("已阻止背景音乐播放: {}", sound.getLocation());
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && isMuted) {
+            if (System.currentTimeMillis() > muteUntil) {
+                isMuted = false;
+                // 时间到，立刻恢复播放
+                if (pausedMusic != null) {
+                    Minecraft.getInstance().getSoundManager().play(pausedMusic);
+                    pausedMusic = null; // 恢复后清除引用
+                }
+            }
         }
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            // 检查静音是否已经过期
-            if (isMuted && System.currentTimeMillis() > muteUntil) {
-                LOGGER.info("背景音乐静音结束");
-                isMuted = false;
+    public static void onPlaySound(PlaySoundEvent event) {
+        if (isMuted && event.getSound() != null) {
+            // 如果在静音期间有新的背景音乐尝试播放，将其拦截并存入待播放队列
+            if (event.getSound().getSource() == SoundSource.MUSIC) {
+                pausedMusic = event.getSound();
+                event.setSound(null); // 阻止当前播放
             }
         }
     }
@@ -45,13 +45,9 @@ public class ClientMusicController {
     public static void scheduleMute(long durationMs) {
         muteUntil = System.currentTimeMillis() + durationMs;
         isMuted = true;
-        LOGGER.info("背景音乐已静音 {} 毫秒", durationMs);
 
-        // 立即停止当前正在播放的背景音乐
+        // 停止当前音乐前，不尝试捕获它（因为原生引擎无法直接提取正在播放的实例并续播）
+        // 但我们会拦截接下来的播放请求
         Minecraft.getInstance().getSoundManager().stop(null, SoundSource.MUSIC);
-    }
-
-    public static boolean isMusicMuted() {
-        return isMuted && System.currentTimeMillis() < muteUntil;
     }
 }

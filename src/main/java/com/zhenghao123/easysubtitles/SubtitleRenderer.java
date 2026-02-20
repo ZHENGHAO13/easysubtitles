@@ -10,7 +10,6 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -31,15 +30,8 @@ public class SubtitleRenderer {
     private static ResourceLocation backgroundTexture;
     private static boolean textureLoaded = false;
 
-    // 暂停状态管理 (已移除暂停功能)
-    // private static boolean isPaused = false;
-    // private static long pausedAt = 0;
-
-    // 多行字幕处理
     private static final List<FormattedCharSequence> subtitleLines = new ArrayList<>();
     private static String lastText = "";
-
-    // 强制重绘标志
     private static boolean needsRedraw = false;
 
     public SubtitleRenderer() {
@@ -57,9 +49,8 @@ public class SubtitleRenderer {
             currentSubtitle = text;
             displayStartedAt = System.currentTimeMillis();
             displayDuration = duration;
-            needsRedraw = true; // 设置需要重绘标志
+            needsRedraw = true;
 
-            // 清除旧的行
             subtitleLines.clear();
             lastText = "";
         });
@@ -69,29 +60,18 @@ public class SubtitleRenderer {
         currentSubtitle = "";
         displayStartedAt = 0;
         displayDuration = 0;
-        // isPaused = false;
-        // pausedAt = 0;
         subtitleLines.clear();
         lastText = "";
         needsRedraw = false;
         LOGGER.debug("清除当前字幕");
     }
 
-    // 获取渲染状态
     public static boolean shouldRender() {
-        // 没有字幕内容不需要渲染
         if (currentSubtitle.isEmpty()) return false;
-
-        // 计算剩余时间
         long remainingTime = getRemainingTime();
-
-        // 需要渲染的情况：
-        // 1. 剩余时间 > 0
-        // 2. 需要强制重绘（状态变化后第一帧）
         return remainingTime > 0 || needsRedraw;
     }
 
-    // 计算剩余播放时间
     private static long getRemainingTime() {
         if (currentSubtitle.isEmpty()) return 0;
         if (displayStartedAt == 0) return 0;
@@ -120,9 +100,7 @@ public class SubtitleRenderer {
             return;
         }
 
-        // 判断是否需要渲染
         if (!shouldRender()) {
-            // 如果有字幕内容但剩余时间为负且不强制重绘，清除字幕
             if (!currentSubtitle.isEmpty() && !needsRedraw) {
                 LOGGER.debug("字幕时间到期，自动清除: '{}'", currentSubtitle);
                 clearSubtitle();
@@ -130,7 +108,6 @@ public class SubtitleRenderer {
             return;
         }
 
-        // 如果有字幕但剩余时间为负，清除字幕
         long remainingTime = getRemainingTime();
         if (remainingTime <= 0) {
             LOGGER.debug("字幕时间到期，自动清除: '{}'", currentSubtitle);
@@ -138,60 +115,41 @@ public class SubtitleRenderer {
             return;
         }
 
-        // 标记已经处理过当前强制重绘请求
         if (needsRedraw) {
             needsRedraw = false;
         }
 
-        // 执行实际渲染
         Minecraft minecraft = Minecraft.getInstance();
         Font font = minecraft.font;
         GuiGraphics gui = event.getGuiGraphics();
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int screenHeight = event.getWindow().getGuiScaledHeight();
 
-        // 更新字幕行（根据配置）
         updateSubtitleLines(font);
 
-        // 计算字幕位置（根据配置）
         int[] position = calculatePosition(screenWidth, screenHeight, font);
         int x = position[0];
         int y = position[1];
 
-        // 渲染背景
         renderBackground(gui, screenWidth, screenHeight, font, x, y);
-
-        // 渲染字幕文本
         renderText(gui, font, x, y);
     }
 
     private static void updateSubtitleLines(Font font) {
-        // 如果字幕文本没有改变，不需要更新
         if (currentSubtitle.equals(lastText)) {
             return;
         }
-
-        // 清除旧行
         subtitleLines.clear();
-
-        // 根据配置的最大宽度进行文本分割
         int maxWidth = ConfigHandler.MAX_WIDTH.get();
         Component formattedText = Component.literal(currentSubtitle);
-
-        // 直接使用 font.split() 返回的 FormattedCharSequence 列表
         subtitleLines.addAll(font.split(formattedText, maxWidth));
-
         lastText = currentSubtitle;
     }
 
     private static int[] calculatePosition(int screenWidth, int screenHeight, Font font) {
-        // 使用配置的位置预设
         ConfigHandler.PositionPreset position = ConfigHandler.POSITION_PRESET.get();
-
-        // 计算字幕总高度（包括行间距）
         int totalHeight = font.lineHeight * subtitleLines.size() + (subtitleLines.size() - 1) * 2;
         int maxLineWidth = getMaxLineWidth(font);
-
         int xPos;
         int yPos ;
 
@@ -232,19 +190,18 @@ public class SubtitleRenderer {
                 xPos = screenWidth - maxLineWidth - 10;
                 yPos = screenHeight - totalHeight - 30;
                 break;
-            case CUSTOM: // 自定义位置
+            case CUSTOM:
                 double xOffset = ConfigHandler.X_OFFSET.get();
                 double yOffset = ConfigHandler.Y_OFFSET.get();
                 xPos = (int) (xOffset * (screenWidth - maxLineWidth));
                 yPos = (int) (yOffset * (screenHeight - totalHeight));
                 break;
-            default: // 默认是BOTTOM_CENTER
+            default:
                 xPos = (screenWidth - maxLineWidth) / 2;
                 yPos = screenHeight - totalHeight - 50;
                 break;
         }
 
-        // 应用整体缩放
         double scale = ConfigHandler.SCALE.get();
         xPos = (int) (xPos * scale);
         yPos = (int) (yPos * scale);
@@ -264,12 +221,9 @@ public class SubtitleRenderer {
     }
 
     private static void renderBackground(GuiGraphics gui, int screenWidth, int screenHeight, Font font, int x, int y) {
-        // 如果不显示背景，直接返回
         if (!ConfigHandler.SHOW_BACKGROUND.get()) {
             return;
         }
-
-        // 如果没有行，不需要渲染背景
         if (subtitleLines.isEmpty()) {
             return;
         }
@@ -290,9 +244,7 @@ public class SubtitleRenderer {
             textureLoaded = true;
         }
 
-        // 如果无法加载图片背景，回退到纯色背景
         if (backgroundTexture == null) {
-            LOGGER.warn("背景纹理不可用，回退到纯色背景");
             renderSolidBackground(gui, textWidth, textHeight, x, y);
             return;
         }
@@ -317,7 +269,6 @@ public class SubtitleRenderer {
         int padding = 5;
         float opacity = (float) (double) ConfigHandler.BACKGROUND_OPACITY.get();
 
-        // 计算背景色 (0xRRGGBBAA)
         int alpha = (int) (opacity * 255);
         int backgroundColor = (alpha << 24) | 0x000000;
 
@@ -335,7 +286,6 @@ public class SubtitleRenderer {
         boolean shadow = ConfigHandler.ENABLE_TEXT_SHADOW.get();
         int lineHeight = font.lineHeight + 2;
 
-        // 应用字体高度缩放
         float fontSize = (float) ConfigHandler.FONT_HEIGHT.get();
         if (fontSize > 0) {
             float scaleFactor = fontSize / font.lineHeight;
@@ -364,25 +314,13 @@ public class SubtitleRenderer {
         }
     }
 
-    // 获取当前字幕文本
     public static String getCurrentSubtitle() {
         return currentSubtitle;
     }
 
-    // 获取剩余时间（毫秒）
     public static long getRemainingTimeMs() {
         return getRemainingTime();
     }
 
-    // 自动终止逻辑 - 集成到游戏中
-    @SubscribeEvent
-    public static void onScreenOpen(ScreenEvent.Opening event) {
-        if (event.getScreen().isPauseScreen()) {
-            LOGGER.debug("检测到ESC菜单打开 - 终止字幕");
-            // 直接终止字幕
-            SubtitlePlayer.stop();
-            // 清除当前正在显示的字幕
-            clearSubtitle();
-        }
-    }
+    // 注意：原来的 onScreenOpen 事件监听已被移除，以避免与 CommandPlayListener 中的新逻辑冲突。
 }
